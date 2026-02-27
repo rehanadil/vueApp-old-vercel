@@ -585,7 +585,7 @@
 </script>
 
   <template>
-    <form class="flex flex-col gap-6 relative px-6">
+    <form class="flex flex-col gap-6 relative px-2 md:px-4 lg:px-6">
 
       <div class=" self-stretch inline-flex justify-start items-start gap-4">
         <div class="w-6 h-6 relative overflow-hidden">
