@@ -563,57 +563,77 @@ const createEvent = async () => {
               <div class="text-slate-700 text-sm font-medium">
                 Invite specific users
               </div>
-              <BaseInput
-                v-model="inviteSearchQuery"
-                type="text"
-                placeholder="Search users by username"
-                inputClass="bg-white/75 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300"
-              />
-
-              <div v-if="inviteUsersLoading" class="text-slate-500 text-sm">
-                Searching users...
-              </div>
-              <div v-else-if="inviteUsersError" class="text-rose-600 text-sm">
-                {{ inviteUsersError }}
-              </div>
-              <div
-                v-else-if="inviteSearchQuery.trim().length >= 2 && inviteUserOptions.length === 0"
-                class="text-slate-500 text-sm"
-              >
-                No users found.
-              </div>
-              <div
-                v-else-if="inviteUserOptions.length > 0"
-                class="max-h-40 overflow-y-auto rounded border border-gray-200 bg-white/70 px-3 py-2"
-              >
-                <label
-                  v-for="user in inviteUserOptions"
-                  :key="`invite-${user.id}`"
-                  class="flex items-center gap-2 py-1.5 cursor-pointer"
-                >
+              <div class="w-full flex flex-col shadow-[0_1px_2px_0_rgba(16,24,40,0.05)] rounded-sm overflow-hidden bg-white/75">
+                <div class="relative w-full">
+                  <MagnifyingGlassIcon class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
                   <input
-                    type="checkbox"
-                    :checked="formData.invitedUsers.some((item) => String(item) === String(user.id))"
-                    @change="toggleInvitedUser(user)"
-                    class="h-4 w-4"
+                    v-model="inviteSearchQuery"
+                    type="text"
+                    placeholder="Search users by username"
+                    class="bg-transparent w-full pl-10 pr-3 py-3 outline-none border-b border-gray-200 text-slate-700 placeholder-slate-500 focus:bg-white/90 transition-colors"
                   />
-                  <span class="text-slate-700 text-sm">{{ user.label }}</span>
-                </label>
+                </div>
+
+                <div v-if="inviteUsersLoading" class="px-4 py-3 text-slate-500 text-sm">
+                  Searching users...
+                </div>
+                <div v-else-if="inviteUsersError" class="px-4 py-3 text-rose-600 text-sm">
+                  {{ inviteUsersError }}
+                </div>
+                <div
+                  v-else-if="inviteSearchQuery.trim().length >= 2 && inviteUserOptions.length === 0"
+                  class="px-4 py-3 text-slate-500 text-sm"
+                >
+                  No users found.
+                </div>
+                <div
+                  v-else-if="inviteUserOptions.length > 0"
+                  class="max-h-60 overflow-y-auto"
+                >
+                  <div
+                    v-for="user in inviteUserOptions"
+                    :key="`invite-${user.id}`"
+                    class="flex items-center justify-between px-4 py-3 hover:bg-black/5 transition-colors cursor-pointer"
+                    @click="toggleInvitedUser(user)"
+                  >
+                    <div class="flex items-center gap-3">
+                      <img v-if="user.avatar" :src="user.avatar" class="w-8 h-8 rounded-full object-cover bg-gray-100 shadow-sm" />
+                      <div v-else class="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600 font-bold text-sm shadow-sm">
+                        {{ (user.displayName || user.username || '?').charAt(0).toUpperCase() }}
+                      </div>
+                      <div class="flex flex-col sm:flex-row sm:items-baseline gap-0 sm:gap-2">
+                        <span class="text-slate-900 text-[15px] font-medium">{{ user.displayName || user.username || user.label }}</span>
+                        <span class="text-slate-500 text-[15px]">{{ user.raw?.user_email || user.raw?.email || `${user.username}@email.com` }}</span>
+                      </div>
+                    </div>
+
+                    <div class="flex items-center justify-center pl-3">
+                      <span v-if="formData.invitedUsers.some((item) => String(item) === String(user.id))"
+                            class="text-green-600 text-[14px]">
+                        invited
+                      </span>
+                      <svg v-else width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="text-green-600 transition-transform hover:scale-110" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                      </svg>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div
                 v-if="Array.isArray(formData.invitedUsers) && formData.invitedUsers.length > 0"
-                class="flex flex-wrap gap-2 pt-1"
+                class="flex flex-wrap gap-2 pt-2"
               >
                 <button
                   v-for="userId in formData.invitedUsers"
                   :key="`selected-${userId}`"
                   type="button"
-                  class="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700"
+                  class="inline-flex items-center gap-1.5 rounded-full bg-white/75 border border-gray-200 px-3 py-1 text-xs text-slate-700 shadow-sm hover:bg-slate-50 transition-colors"
                   @click="removeInvitedUser(userId)"
                 >
                   <span>{{ getInvitedUserLabel(userId) }}</span>
-                  <span class="text-slate-500">x</span>
+                  <span class="text-slate-400 hover:text-slate-600">x</span>
                 </button>
               </div>
             </div>
@@ -655,59 +675,92 @@ const createEvent = async () => {
             <div class="justify-start text-slate-700 text-base font-normal leading-normal">
               Blocked user
             </div>
-            <div class="w-full flex flex-col gap-2">
-              <BaseInput
-                v-model="blockedUserSearchQuery"
-                type="text"
-                placeholder="Search by username & email"
-                inputClass="bg-white/75 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300"
-              />
+            <div class="w-full flex flex-col shadow-[0_1px_2px_0_rgba(16,24,40,0.05)] rounded-sm bg-white/75 relative">
+              <div class="relative w-full">
+                <MagnifyingGlassIcon class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                <input
+                  v-model="blockedUserSearchQuery"
+                  type="text"
+                  placeholder="Search by username & email"
+                  class="bg-transparent w-full pl-10 pr-3 py-3 outline-none border-b border-gray-200 text-slate-700 placeholder-slate-500 focus:bg-white/90 transition-colors"
+                />
+              </div>
 
-              <div v-if="blockedUsersLoading" class="text-slate-500 text-sm">
+              <div v-if="blockedUsersLoading" class="px-4 py-3 text-slate-500 text-sm">
                 Searching users...
               </div>
-              <div v-else-if="blockedUsersError" class="text-rose-600 text-sm">
+              <div v-else-if="blockedUsersError" class="px-4 py-3 text-rose-600 text-sm">
                 {{ blockedUsersError }}
               </div>
               <div
                 v-else-if="blockedUserSearchQuery.trim().length >= 2 && blockedUserOptions.length === 0"
-                class="text-slate-500 text-sm"
+                class="px-4 py-3 text-slate-500 text-sm"
               >
                 No users found.
               </div>
               <div
                 v-else-if="blockedUserOptions.length > 0"
-                class="max-h-40 overflow-y-auto rounded border border-gray-200 bg-white/70 px-3 py-2"
+                class="max-h-60 overflow-y-auto w-full bg-white top-12 absolute z-10"
               >
-                <label
+                <div
                   v-for="user in blockedUserOptions"
                   :key="`blocked-${user.id}`"
-                  class="flex items-center gap-2 py-1.5 cursor-pointer"
+                  class="flex items-center justify-between p-3 hover:bg-black/5 transition-colors cursor-pointer"
+                  @click="toggleBlockedUser(user)"
                 >
-                  <input
-                    type="checkbox"
-                    :checked="formData.blockedUsers.some((item) => String(item) === String(user.id))"
-                    @change="toggleBlockedUser(user)"
-                    class="h-4 w-4"
-                  />
-                  <span class="text-slate-700 text-sm">{{ user.label }}</span>
-                </label>
-              </div>
+                  <div class="flex items-center gap-2">
+                    <img v-if="user.avatar" :src="user.avatar" class="w-[1.375rem] h-[1.375rem] rounded-full object-cover bg-gray-100 shadow-sm" />
+                    <div v-else class="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-[#FF5B22] font-bold text-sm shadow-sm">
+                      {{ (user.displayName || user.username || '?').charAt(0).toUpperCase() }}
+                    </div>
+                    <div class="flex flex-col sm:flex-row sm:items-baseline gap-0 sm:gap-2">
+                      <span class="text-gray-950 text-[15px] font-medium">{{ user.label }}</span>
+                     <!-- <span class="text-slate-500 text-[15px]">{{ user.raw?.user_email || user.raw?.email || `${user.username}@email.com` }}</span> -->
+                    </div>
+                  </div>
 
+                  <div class="flex items-center justify-center pl-3">
+                    <span v-if="formData.blockedUsers.some((item) => String(item) === String(user.id))"
+                          class="text-[#FF5B22] text-[14px]">
+                      blocked
+                    </span>
+                    <svg v-else width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="text-[#FF5B22] transition-transform hover:scale-110" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div
+              v-if="Array.isArray(formData.blockedUsers) && formData.blockedUsers.length > 0"
+              class="flex flex-col gap-0 pt-2 w-full"
+            >
               <div
-                v-if="Array.isArray(formData.blockedUsers) && formData.blockedUsers.length > 0"
-                class="flex flex-wrap gap-2 pt-1"
+                v-for="(userId, index) in formData.blockedUsers"
+                :key="`blocked-selected-${userId}`"
+                :class="[
+                  'flex items-center justify-between py-3',
+                  index !== formData.blockedUsers.length - 1 ? 'border-b border-gray-200' : ''
+                ]"
               >
-                <button
-                  v-for="userId in formData.blockedUsers"
-                  :key="`blocked-selected-${userId}`"
-                  type="button"
-                  class="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700"
-                  @click="removeBlockedUser(userId)"
-                >
-                  <span>{{ getBlockedUserLabel(userId) }}</span>
-                  <span class="text-slate-500">x</span>
-                </button>
+                <div class="flex items-center gap-3">
+                  <img v-if="blockedUserLookup[userId]?.avatar" :src="blockedUserLookup[userId].avatar" class="w-8 h-8 rounded-full object-cover bg-gray-100 shadow-sm" />
+                  <div v-else class="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-[#FF5B22] font-bold text-sm shadow-sm">
+                    {{ (getBlockedUserLabel(userId) || '?').charAt(0).toUpperCase() }}
+                  </div>
+                  <div class="flex flex-col sm:flex-row sm:items-baseline gap-0 sm:gap-2">
+                    <span class="text-gray-950 text-[15px] font-medium">{{ getBlockedUserLabel(userId) }}</span>
+                    <span class="text-gray-500 text-[15px]">{{ blockedUserLookup[userId]?.raw?.user_email || blockedUserLookup[userId]?.raw?.email || `${blockedUserLookup[userId]?.username || 'user'}@email.com` }}</span>
+                  </div>
+                </div>
+
+                <div class="flex items-center justify-center pl-3">
+                  <button type="button" class="text-slate-500 hover:text-slate-800 transition-colors cursor-pointer" @click="removeBlockedUser(userId)">
+                    <img src="https://i.ibb.co.com/cSNVr9ks/3-dot.webp" alt="3-dot" class="w-5 h-5" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
