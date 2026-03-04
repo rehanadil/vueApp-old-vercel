@@ -15,6 +15,7 @@ import OneOnOneBookingFlowPopup from "@/components/FanBookingFlow/OneOnOneBookin
 import ToastHost from "@/components/ui/toast/ToastHost.vue";
 import { mapBookedSlotsToCalendarEvents, mapAvailabilityToCalendarEvents } from "@/services/bookings/utils/bookingSlotUtils.js";
 import { addDays, startOfWeek } from "@/utils/calendarHelpers.js";
+import { useBodyOverflowHidden } from "@/composables/useBodyOverflowHidden";
 import { mapDraftEventToFanBookingPreview } from "@/services/events/mappers/mapDraftEventToFanBookingPreview.js";
 
 // Import Validators
@@ -608,16 +609,19 @@ const onDebugSubmit = () => {
 const formTitle = computed(() => {
     return currentType.value === 'group' ? 'Group Event Settings' : 'Private Booking Settings';
 });
+
+// Disable and hide body overflow when this component is active to prevent background scrolling
+useBodyOverflowHidden({ minWidth: 1010 });
 </script>
 
 <template>
     <DashboardWrapperTwoColContainer>
         <ToastHost />
-        <div class="flex w-full">
+        <div class="flex w-full flex-col lg:flex-row gap-4 lg:gap-0">
             <div
-                class="flex h-full flex-col gap-6 relative w-full md:w-[520px] md:min-w-[520px] bg-white/50 shadow-[0px_4px_6px_-2px_rgba(16,24,40,0.03)] backdrop-blur-xl">
+                class="flex h-full flex-col gap-6 relative w-full lg:w-[500px] lg:min-w-[500px] bg-white/50 shadow-[0px_4px_6px_-2px_rgba(16,24,40,0.03)] backdrop-blur-xl lg:overflow-y-auto overflow-x-hidden lg:no-scrollbar lg:h-dvh lg:max-h-dvh lg:pb-4">
 
-                <div class="px-6 pt-6 pb-2 bg-white/20 flex justify-between items-center">
+                <div class="px-2 md:px-4 lg:px-6 pt-6 pb-2 bg-white/20 flex justify-between items-center">
                     <div class="justify-start text-slate-700 text-base font-semibold leading-6">
                         {{ formTitle }}
                     </div>
@@ -644,7 +648,7 @@ const formTitle = computed(() => {
 
             </div>
 
-            <div class="w-full">
+            <div class="w-full lg:overflow-y-auto lg:no-scrollbar lg:h-dvh lg:max-h-dvh lg:pb-4">
                 <NotificationCard variant="alert" :showIcon="false" title="Your are now viewing your booking setting in personal event calendar view."
                     description="To preview how your booking schedule will look like on your profile, go to preview booking schedule."  />
                 <div v-if="calendarError" class="mx-6 mt-3 px-3 py-2 rounded bg-red-50 text-red-700 text-xs font-medium">
@@ -653,7 +657,7 @@ const formTitle = computed(() => {
                 <div v-else-if="calendarLoading" class="mx-6 mt-3 px-3 py-2 rounded bg-gray-100 text-gray-600 text-xs font-medium">
                     Loading booked slots...
                 </div>
-                <MainCalendar class="w-full px-6 pt-6" variant="theme2" :focus-date="state.focus" :events="events2"
+                <MainCalendar class="w-full px-2 md:px-4 lg:px-6 pt-6" variant="theme2" :focus-date="state.focus" :events="events2"
                     :theme="theme2" :data-attrs="{ 'data-calendar': 'main-2' }" :console-overlaps="true"
                     :highlight-today-column="true" time-start="00:00" time-end="23:00" :slot-minutes="60"
                     :row-height-px="64" :min-event-height-px="0" @date-selected="onSelectFromMain"
