@@ -302,7 +302,9 @@ function onRowContext(e, row) { e?.preventDefault?.(); emit('row-context', row) 
 
     <div v-if="showMobile" :class="showMobileClass">
        <div :class="themeMobile.container">
+
           <div class="p-2 space-y-3">
+            
              <div v-for="(row, rIdx) in rows" :key="'m-'+rIdx" :class="themeMobile.card" @click="onRowClick(row)">
                 <template v-for="(col, cIdx) in columns" :key="'m-col-'+cIdx">
                    <div v-if="!col.hiddenAt?.includes('xs')" :class="themeMobile.cardRow">
