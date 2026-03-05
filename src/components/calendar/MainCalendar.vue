@@ -17,7 +17,8 @@
 
         <div v-if="isMobileCalendarOpen" ref="mobileCalendarRef"
           class="absolute top-12 left-0 z-[100] w-full lg:hidden rounded-bl-[12px] rounded-br-[12px] overflow-hidden">
-          <div class="p-2 bg-white/80 backdrop-blur-[10px] rounded-br-xl rounded-bl-xl md:rounded-xl shadow-[0px_5px_5px_0px_rgba(0,0,0,0.10)]">
+          <div
+            class="p-2 bg-white/80 backdrop-blur-[10px] rounded-br-xl rounded-bl-xl md:rounded-xl shadow-[0px_5px_5px_0px_rgba(0,0,0,0.10)]">
             <div class="flex justify-between items-center">
               <div class="flex items-center gap-2 cursor-pointer" @click="isDatePopupOpen = true">
                 <div class="text-gray-900 text-base font-medium uppercase">{{ title }}</div>
@@ -523,6 +524,7 @@
         :event="selectedEvent"
         @approve-booking="handleApproveBooking"
         @reject-booking="handleRejectBooking"
+        @cancel-booking="handleCancelBooking"
       />
     </PopupHandler>
 
@@ -568,7 +570,7 @@ const props = defineProps({
   minEventHeightPx: { type: Number, default: 0 }
 });
 
-const emit = defineEmits(['date-selected', 'update:focus-date', 'preview-schedule', 'approve-booking', 'reject-booking']);
+const emit = defineEmits(['date-selected', 'update:focus-date', 'preview-schedule', 'approve-booking', 'reject-booking', 'cancel-booking']);
 const today = ref(SOD(new Date()));
 const width = ref(window.innerWidth);
 const cursor = ref(new Date(props.focusDate));
@@ -953,6 +955,16 @@ const dispatchEventClick = (event) => {
   eventDetailsPopupOpen.value = true;
 };
 
+const openEventDetails = (event) => {
+  if (!event || typeof event !== 'object') return;
+  selectedEvent.value = event;
+  eventDetailsPopupOpen.value = true;
+};
+
+const closeEventDetails = () => {
+  eventDetailsPopupOpen.value = false;
+};
+
 const handleApproveBooking = (payload) => {
   eventDetailsPopupOpen.value = false;
   emit('approve-booking', payload);
@@ -961,6 +973,11 @@ const handleApproveBooking = (payload) => {
 const handleRejectBooking = (payload) => {
   eventDetailsPopupOpen.value = false;
   emit('reject-booking', payload);
+};
+
+const handleCancelBooking = (payload) => {
+  eventDetailsPopupOpen.value = false;
+  emit('cancel-booking', payload);
 };
 const eventsForDay = (day) => {
   const s = SOD(day), e = addDays(s, 1);
@@ -1054,5 +1071,10 @@ watch(showSchedule, (value) => {
       showSchedule: value,
     };
   }
+});
+
+defineExpose({
+  openEventDetails,
+  closeEventDetails,
 });
 </script>
