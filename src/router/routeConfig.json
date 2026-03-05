@@ -533,7 +533,7 @@
     "requiresAuth": false,
     "enabled": false,
     "supportedRoles": [],
-    "componentPath": "@ /templates/about/AboutWrapper.vue",
+    "componentPath": "@/templates/about/AboutWrapper.vue",
     "preLoadSections": ["dashboard"]
   },
   {
@@ -737,6 +737,10 @@
   {
     "slug": "/groupBookingForm",
   "componentPath": "@/components/ui/form/BookingForm/GroupBookingForm.vue"
+  },
+  {
+    "slug": "/home",
+  "componentPath": "@/templates/home/Home.vue"
   },
   {
     "slug": "/dev/datepicker-showcase",

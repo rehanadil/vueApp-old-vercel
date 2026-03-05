@@ -17,7 +17,8 @@
 
         <div v-if="isMobileCalendarOpen" ref="mobileCalendarRef"
           class="absolute top-12 left-0 z-[100] w-full lg:hidden rounded-bl-[12px] rounded-br-[12px] overflow-hidden">
-          <div class="p-2 bg-white/80 backdrop-blur-[10px] rounded-br-xl rounded-bl-xl md:rounded-xl shadow-[0px_5px_5px_0px_rgba(0,0,0,0.10)]">
+          <div
+            class="p-2 bg-white/80 backdrop-blur-[10px] rounded-br-xl rounded-bl-xl md:rounded-xl shadow-[0px_5px_5px_0px_rgba(0,0,0,0.10)]">
             <div class="flex justify-between items-center">
               <div class="flex items-center gap-2 cursor-pointer" @click="isDatePopupOpen = true">
                 <div class="text-gray-900 text-base font-medium uppercase">{{ title }}</div>

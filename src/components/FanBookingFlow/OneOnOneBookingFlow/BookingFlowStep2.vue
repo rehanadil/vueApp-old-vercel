@@ -48,7 +48,7 @@ const timezoneLabel = computed(() => {
 const theme1 = {
   mini: {
     wrapper: 'flex flex-col w-full font-medium text-gray-500 mt-[10px] gap-[0.625rem] rounded-xl ',
-    header: 'text-lg font-semibold text-gray-900',
+    header: 'text-lg font-medium text-white',
     dayBase: 'w-[37.43px] h-[37px] rounded-full flex flex-col items-center justify-center focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500 hover:bg-gray-50',
     outside: 'opacity-0',
     expired: 'opacity-40 cursor-not-allowed pointer-events-none',

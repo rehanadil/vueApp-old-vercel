@@ -210,30 +210,6 @@
       quillEditor.value.firstChild.innerHTML = formData.value.eventDescription;
     }
 
-    // Listen for text changes
-    quillEditor.value.firstChild.addEventListener('input', () => {
-      formData.value.eventDescription = quillEditor.value.firstChild.innerHTML;
-    });
-
-    const container = quillEditor.value.closest('.tier-description-quill-container');
-    const toolbar = container.querySelector('.ql-toolbar.ql-snow');
-    if (toolbar) {
-      toolbar.style.border = 'none';
-      toolbar.classList.add('!px-0', '!pt-0', '!pb-2');
-      toolbar.querySelectorAll('button').forEach(b => {
-        b.classList.add('!w-auto', '!min-w-[30px]', '!h-auto', '!p-1', 'rounded', 'hover:!bg-[#F9FAFB]', 'dark:hover:!bg-[#323232]', 'flex', 'items-center', 'justify-center');
-      });
-    }
-    const editorContainer = container.querySelector('.ql-container.ql-snow');
-    if (editorContainer) {
-      editorContainer.style.border = 'none';
-      editorContainer.classList.add('!font-sans', '!text-base');
-    }
-    const editor = container.querySelector('.ql-editor');
-    if (editor) {
-      editor.classList.add('!px-0', '!py-2', '!text-[#101828]', 'dark:!text-[#dbd8d3]', 'min-h-[80px]');
-    }
-  });
 
   function makeSlot(startTime = "00:00", endTime = "03:00", offHours = false) {
     return { startTime, endTime, offHours: Boolean(offHours) };
@@ -657,10 +633,7 @@
               </CustomDropdown>
             </div>
           </div>
-          <div
-            class="tier-description-quill-container flex flex-col px-3.5 py-2.5 border-b border-[#D0D5DD] rounded-t-sm shadow-sm bg-white/30 w-full dark:bg-[#181a1b4d] dark:border-[#3b4043]">
-            <div ref="quillEditor"></div>
-          </div>
+          <QuillEditor v-model="formData.eventDescription" placeholder="Event Description..." />
           <div class="flex flex-col gap-1.5 w-full">
             <div class="flex flex-col gap-1.5">
               <div class="text-slate-700 text-xs font-normal leading-none mb-1.5">Call Type</div>
