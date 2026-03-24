@@ -399,7 +399,7 @@ onBeforeUnmount(() => {
       <p v-if="paymentError" class="text-xs text-red-400 font-medium">{{ paymentError }}</p>
 
       <!-- Financial summary -->
-      <div class="flex flex-col justify-center items-start gap-2">
+      <div v-if="1!=1" class="flex flex-col justify-center items-start gap-2">
 
         <div class="inline-flex justify-between w-full">
           <div class="justify-start text-white text-sm font-normal font-['Poppins'] leading-5">Original balance</div>
@@ -454,6 +454,94 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
+      </div>
+
+      <div class="rounded-lg bg-white/10 flex flex-col overflow-hidden">
+        <div class="flex flex-col gap-3 w-full p-5">
+          <h3 class="text-sm text-[#22CCEE] leading-[20px]">PAYMENT SUMMARY</h3>
+          <div class="flex flex-col gap-4">
+            <div class="flex flex-col gap-3">
+              <div class="flex flex-col gap-2">
+                <h4 class="text-xs leading-[18px] text-[#98A2B3]">WALLET TOP UP</h4>
+                <div class="flex flex-row justify-between items-center text-white">
+                  <div class="flex items-center">
+                    <p class="text-sm font-normal text-white">Original balance</p>
+                  </div>
+                  <div class="flex justify-center items-center gap-1">
+                    <div class="w-4 h-4 flex justify-center items-center"><img src="/images/token.svg"
+                        alt="token-icon" /></div>
+                    <p class="text-sm font-medium text-white">{{ walletBalance.toLocaleString() }}</p>
+                  </div>
+                </div>
+                <div class="flex flex-row justify-between items-center text-white">
+                  <div class="flex items-center">
+                    <p class="text-sm font-normal text-white">Top up amount</p>
+                  </div>
+                  <div class="flex justify-center items-center gap-1">
+                    <span class="text-sm font-medium text-white">+</span>
+                    <div class="w-4 h-4 flex justify-center items-center"><img src="/images/token.svg"
+                        alt="token-icon" /></div>
+                    <p class="text-sm font-medium text-white">{{ selectedAmount.toLocaleString() }}</p>
+                  </div>
+                </div>
+                <hr class="border-[#F2F4F7] opacity-50" />
+                <div class="flex flex-row justify-between items-center text-white">
+                  <div class="flex items-center">
+                    <p class="text-sm font-normal text-white">Balance after top up</p>
+                  </div>
+                  <div class="flex justify-center items-center gap-1">
+                    <div class="w-4 h-4 flex justify-center items-center"><img src="/images/token.svg"
+                        alt="token-icon" /></div>
+                    <p class="text-sm font-medium text-white">{{ (walletBalance + selectedAmount).toLocaleString() }}</p>
+                  </div>
+                </div>
+                <div class="flex flex-row justify-between items-center text-white">
+                  <div class="flex items-center">
+                    <p class="text-sm font-normal text-white">Session total</p>
+                  </div>
+                  <div class="flex justify-center items-center gap-1">
+                    <span class="text-sm font-medium text-white">-</span>
+                    <div class="w-4 h-4 flex justify-center items-center"><img src="/images/token.svg"
+                        alt="token-icon" /></div>
+                    <p class="text-sm font-medium text-white">{{ totalPrice }}</p>
+                  </div>
+                </div>
+                <hr class="border-[#F2F4F7] opacity-50" />
+                <div class="flex flex-row justify-between items-center text-white">
+                  <div class="flex items-center">
+                    <p class="text-sm font-semibold text-white">Balance after booking</p>
+                  </div>
+                  <div class="flex justify-center items-center gap-1">
+                    <div class="w-4 h-4 flex justify-center items-center"><img src="/images/token.svg"
+                        alt="token-icon" /></div>
+                    <p class="text-sm font-semibold text-white">{{ remainingBalance.toLocaleString() }}</p>
+                  </div>
+                </div>
+                <div class="flex flex-row justify-between items-center text-white">
+                  <div class="flex items-center">
+                    <p class="text-sm font-semibold text-white">Top up payment</p>
+                  </div>
+                  <div class="flex justify-center items-center gap-1">
+                    <div class="w-4 h-4 flex justify-center items-center"></div>
+                    <p class="text-sm font-semibold text-white">USD$ {{ topUpUSD }}</p>
+                  </div>
+                </div>
+                <hr class="border-[#F2F4F7] opacity-50" />
+                <div class="flex flex-row justify-between items-start text-white">
+                  <p class="text-xl font-semibold leading-[30px] text-white">Amount Due Today</p>
+                  <div class="flex flex-col">
+                    <div class="flex justify-end items-center gap-0.5">
+                      <div class="w-4 h-4 flex justify-center items-center"><img src="/images/token.svg"
+                          alt="token-icon" /></div>
+                      <p class="text-xl font-semibold">{{ selectedAmount.toLocaleString() }}</p>
+                    </div>
+                    <span class="text-xs font-medium text-[#98A2B3] whitespace-nowrap">=USD$ {{ topUpUSD }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Submit button -->
