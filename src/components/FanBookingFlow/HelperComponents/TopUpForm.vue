@@ -104,12 +104,16 @@ function resolveUserData() {
 // Run immediately so window.userData is set before child components (GuestCheckoutForm) initialise
 resolveUserData();
 
+function resolveAjaxUrl() {
+  return window?.custom_checkout_params?.ajax_url || '/wp-admin/admin-ajax.php'
+}
+
 async function initHandler() {
   const container = cardFormRef.value?.paymentContainer;
   if (!container) return;
 
   handler = new window.AxcessGatewayFormHandler({
-    ajaxUrl:    window?.custom_checkout_params?.ajax_url || '/wp-admin/admin-ajax.php',
+    ajaxUrl:    resolveAjaxUrl(),
     container,
     extraParams: {
       user_id:           resolveFanUserId(),

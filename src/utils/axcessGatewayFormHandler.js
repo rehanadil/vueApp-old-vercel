@@ -607,10 +607,10 @@ class AxcessGatewayFormHandler {
       );
       if (!wpwlForm) return;
 
-      wpwlForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        await this.submitPayment();
-      }, { once: true });
+      // wpwlForm.addEventListener('submit', async (e) => {
+      //   e.preventDefault();
+      //   await this.submitPayment();
+      // }, { once: true });
     }, 0);
   }
 
