@@ -85,7 +85,14 @@ const selectedCard = computed(() =>
 
 function syncSavedCards() {
   const details = window?.custom_checkout_params?.payment_details;
-  if (!Array.isArray(details) || details.length === 0) return;
+  if (!Array.isArray(details) || details.length === 0) {
+    savedCards.value = [];
+    selectedTokenId.value = null;
+    paymentMethod.value = 'new_card';
+
+    return;
+  }
+
   savedCards.value = details;
   const def = window.custom_checkout_params.payment_detail;
   if (def?.id && !selectedTokenId.value) {
