@@ -20,7 +20,7 @@
             <div :class="[
               view === 'month' ? 'static' : 'absolute',
               event?.isAvailabilityBlock ? 'pointer-events-none' : '',
-              'py-[0.125rem] px-[0.25rem] rounded-[0.375rem] text-xs shadow-custom'
+              'py-[0.125rem] px-[0.25rem] rounded-[0.375rem] text-xs shadow-custom min-h-[2.375rem]'
             ]" :style="[style, getCalendarEventStyle(event)]" @click.stop="!event?.isAvailabilityBlock && onClick(event)">
               <template v-if="!event?.isAvailabilityBlock">
                 <div class="flex items-center font-medium truncate">{{ event.title }}</div>
@@ -46,7 +46,7 @@
             <div :class="[
               view === 'month' ? 'static' : 'absolute',
               event?.isAvailabilityBlock ? 'pointer-events-none' : '',
-              'py-[0.125rem] px-[0.25rem] rounded-lg text-xs shadow-md'
+              'py-[0.125rem] px-[0.25rem] rounded-lg text-xs shadow-md min-h-[38px]'
             ]" :style="[style, getCalendarEventStyle(event)]" @click.stop="!event?.isAvailabilityBlock && onClick(event)">
               <template v-if="!event?.isAvailabilityBlock">
                 <div class="font-semibold truncate">{{ event.title }}</div>
@@ -624,7 +624,7 @@ const theme1 = {
     axisXDay: 'py-1 text-center h-[63.92px]',
     axisXToday: 'bg-gray-500 text-white rounded-full w-8 h-8 flex items-center justify-center',
     axisYRow: 'h-[62.62px] uppercase text-right pr-2 w-[2.4rem] lg:w-[4.8rem] text-gray-400 text-xs font-medium leading-4',
-    colBase: 'relative bg-white/20 overflow-hidden',
+    colBase: 'relative bg-white/20',
     gridRow: 'h-[64px] border-b  border-white/50',
     eventBase: 'absolute mx-1 rounded-md border border-stone-100 bg-white p-2 text-xs shadow-sm'
   },
