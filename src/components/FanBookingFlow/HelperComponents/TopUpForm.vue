@@ -105,6 +105,11 @@ function resolveUserData() {
 resolveUserData();
 
 function resolveAjaxUrl() {
+  if( window.location.hostname === 'bookings-frontend-omega.vercel.app' ) {
+    // Dev environment - point to staging ajax_url to allow testing with real payment processing without needing to run local backend
+    return 'https://new-stage.fansocial.app/wp-admin/admin-ajax.php';
+  }
+
   return window?.custom_checkout_params?.ajax_url || '/wp-admin/admin-ajax.php'
 }
 
