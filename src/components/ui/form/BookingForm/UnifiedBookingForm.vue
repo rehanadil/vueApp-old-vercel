@@ -742,7 +742,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
                     </div>
                 </div>
 
-                <div :class="[embedded ? 'w-full h-full min-h-0 overflow-y-auto' : 'w-full h-dvh max-h-dvh overflow-y-auto']">
+                <div :class="[embedded ? 'w-full h-full min-h-0 overflow-y-auto overflow-x-hidden' : 'w-full h-dvh max-h-dvh overflow-y-auto overflow-x-hidden']">
                     <!-- Private Form -->
                     <template v-if="currentType === 'private'">
                         <OneOnOneBookinStep1
@@ -790,7 +790,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
                     @preview-schedule="previewSchedule = true">
 
                     <template #event="{ event, style, onClick }">
-                        <div class="absolute py-1 px-2 border-b text-xs shadow-sm overflow-hidden"
+                        <div class="absolute py-1 px-2 border-b text-xs shadow-sm overflow-hidden min-h-[2.375rem]"
                             :style="[style, getCalendarEventStyle(event, 'existing')]" @click.stop="onClick(event)">
                             <div class="flex items-center gap-1 font-normal truncate">
                                 <svg width="11" height="12" viewBox="0 0 11 12" fill="none"
@@ -806,7 +806,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
                     </template>
 
                     <template #event-custom="{ event, style, onClick }">
-                        <div class="absolute py-1 px-2 border-b text-xs shadow-sm overflow-hidden"
+                        <div class="absolute py-1 px-2 border-b text-xs shadow-sm overflow-hidden min-h-[2.375rem]"
                             :style="[style, getCalendarEventStyle(event, event?.isDraftPreview ? 'draft' : 'existing')]"
                             @click.stop="onClick(event)">
                             <div class="flex items-center gap-1 font-normal leading-4 truncate">

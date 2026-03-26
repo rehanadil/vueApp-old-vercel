@@ -606,11 +606,11 @@ onMounted(() => {
 
 <template>
   <div
-    class="relative md:rounded-[20px] h-full lg:w-[852px] overflow-hidden"
+    class="relative lg:rounded-[20px] h-dvh lg:h-full lg:w-[852px] md:!bg-none overflow-hidden"
     :style="popupBackgroundStyle"
   >
-    <div class="backdrop-blur-[10px] h-full md:rounded-[20px] bg-[#0C111D96]">
-      <div class="md:rounded-b-[20px] h-full md:rounded-t-[20px] flex bg-black/50 flex-col md:flex-row">
+    <div class="h-full lg:rounded-[20px] md:px-[10px] md:py-6 lg:py-8 md:bg-black lg:bg-transparent lg:p-0">
+      <div class="md:rounded-b-[20px] h-full md:rounded-t-[20px] flex bg-black/75 flex-col md:flex-row backdrop-blur-sm md:overflow-hidden">
 
         <OneOnOneBookingFlowLeftSideBar
           :time-display="formattedTimeRange"
@@ -624,9 +624,9 @@ onMounted(() => {
           :show-approval-needed="showApprovalNeeded"
         />
 
-        <div class="flex-1 flex w-full flex-col gap-3 justify-between min-h-0 overflow-y-auto max-h-[27.4rem] md:max-h-[40.625rem] [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] px-3 pt-3 pb-0 backdrop-blur-sm">
+        <div class="flex-1 flex w-full flex-col gap-3 justify-between min-h-0 overflow-y-auto h-auto max-h-[29.4rem] md:max-h-none lg:max-h-[40.625rem] [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] px-2 pt-2 lg:px-3 lg:pt-3 pb-0 backdrop-blur-sm">
 
-          <div class="flex-1 flex-col w-full p-5">
+          <div class="flex-none lg:flex-1 flex-col w-full lg:p-5">
              <div class="flex items-center justify-between w-full mb-2">
               <span class="flex items-center gap-2">
                 <div :class="theme1.mini.header">{{ header }}</div>
@@ -656,7 +656,7 @@ onMounted(() => {
             />
           </div>
 
-          <div v-if="!state.selected" class="flex-1 flex flex-col justify-center items-center gap-8 p-5 h-full">
+          <div v-if="!state.selected" class="flex-1 flex flex-col justify-center items-center gap-8 lg:p-5 h-full">
             <p class="text-sm flex justify-center leading-20 text-center py-16 px-0 items-center text-gray-400">
               Select a date from calendar to see available time slots.
             </p>
@@ -664,7 +664,7 @@ onMounted(() => {
 
           <div
             v-else
-            class="flex-1 flex flex-col px-5 gap-6 pb-14 bg-gray-950/10 lg:overflow-hidden lg:overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]"
+            class="flex-1 flex flex-col lg:px-5 gap-6 pb-14 bg-gray-950/10 lg:overflow-hidden lg:overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]"
           >
             <div
               v-if="!hasAvailableSlots"
@@ -805,7 +805,7 @@ onMounted(() => {
             @click="goToNextStep"
           >
             <div
-              class="relative w-[14.625rem] p-[12px] rounded-br-[20px] flex justify-center items-center gap-2 after:content-[''] after:absolute after:right-full after:top-0 after:w-0 after:h-0 after:border-t-[3.3125rem] after:border-t-transparent after:border-b-0"
+              class="relative w-[14.625rem] p-[12px] md:rounded-br-[20px] flex justify-center items-center gap-2 after:content-[''] after:absolute after:right-full after:top-0 after:w-0 after:h-0 after:border-t-[3.3125rem] after:border-t-transparent after:border-b-0"
               :class="!bottomActionDisabled
                 ? 'bg-[#07F468] after:border-r-[1rem] after:border-r-[#07F468]'
                 : 'bg-[#6c7280] cursor-not-allowed after:border-r-[1rem] after:border-r-[#6c7280]'"

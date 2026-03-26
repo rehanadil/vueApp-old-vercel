@@ -19,6 +19,8 @@ import {
   bookingFlowTokenIcon,
 } from './oneOnOneBookingFlowAssets.js';
 import { resolveCreatorPresentation } from './creatorPresentation.js';
+import FlowHandler from '@/services/flow-system/FlowHandler'
+import { useChatSocket } from '@/composables/useChatSocket';
 
 const props = defineProps({
   engine: {
@@ -50,6 +52,7 @@ const creatorPresentation = computed(() => resolveCreatorPresentation({
   bookingResult: props.engine.getState('fanBooking.booking.result'),
 }));
 
+const topUpFormRef = ref(null);
 const isSubmitting = ref(false);
 const isCheckingBalance = ref(false);
 const hasCheckedBalance = ref(false);
@@ -60,7 +63,7 @@ const secondsRemaining = ref(0);
 let holdTimerId = null;
 
 const PAYMENT_SUBSTEP_SUMMARY = 'summary';
-const PAYMENT_SUBSTEP_TOPUP = 'topup';
+const PAYMENT_SUBSTEP_TOPUP   = 'topup';
 
 const popupBackgroundStyle = computed(() => ({
   backgroundImage: `url('${bookingFlowBackgroundImage}')`,
@@ -345,7 +348,7 @@ function preflightBookingPayload() {
     userId: resolveFanId(),
   });
 
-  const requiredFields = ['eventId', 'userId', 'creatorId', 'startIso', 'endIso'];
+  const requiredFields = ['eventId', 'creatorId', 'startIso', 'endIso'];
   const missingFields = requiredFields.filter((field) => !previewPayload?.[field]);
 
   return {
@@ -486,6 +489,62 @@ function fireAndForgetBookingCreated() {
   }).catch(() => {
     // Fire-and-forget endpoint; ignore transport errors.
   });
+}
+
+async function fireAndForgetPostBookingChat({ bookingId = null, eventId = null } = {}) {
+  try {
+    const allowInstantBooking    = toBoolean(selectedEvent.value?.allowInstantBooking    ?? selectedEvent.value?.raw?.allowInstantBooking,    false);
+    const allowPersonalRequest   = toBoolean(selectedEvent.value?.allowPersonalRequestRequired ?? selectedEvent.value?.raw?.allowPersonalRequestRequired, false);
+
+    const shouldCreateChat =
+      (allowInstantBooking && allowPersonalRequest) ||
+      (!allowInstantBooking);
+
+    if (!shouldCreateChat) return;
+
+    const fanUserId   = resolveFanId();
+    const creatorId   = resolveCreatorId();
+    const eventTitle  = selectedEvent.value?.title || selectedEvent.value?.raw?.title || null;
+    const slotDate    = props.engine.getState('fanBooking.booking.lastPreflightPayload')?.startIso
+      || null;
+
+    // Step 1 — create chat
+    const chatRes = await FlowHandler.run('chat.createChat', {
+      type:         'direct',
+      createdBy:    String(fanUserId),
+      participants: [String(fanUserId), String(creatorId)],
+      name:         eventTitle || 'Booking Chat',
+      description:  eventTitle ? `Booking request for ${eventTitle}` : 'Booking request',
+    });
+    if (!chatRes?.ok) return;
+    const chatId = chatRes.data?.chatId;
+    if (!chatId) return;
+
+    // Step 2 — send booking request message
+    const msgRes = await FlowHandler.run('chat.sendBookingRequestMessage', {
+      chatId,
+      bookingId,
+      action:     'pending',
+      senderId:   fanUserId,
+      eventId,
+      eventTitle,
+      slotDate,
+      text: `Booking request for "${eventTitle}" ${slotDate ? `on ${slotDate}` : ''}`.trim(),
+    });
+    if (!msgRes?.ok) return;
+    const messageId = msgRes.data?.item?.message_id || msgRes.data?.item?.id;
+    if (!messageId) return;
+
+    // Notify participants via socket so their chat lists reload (chat:message → unknown chat_id → fetchUserChats)
+    const { sendChatMessage } = useChatSocket(fanUserId)
+    const recipients = [parseInt(fanUserId), parseInt(creatorId)].filter(Boolean)
+    sendChatMessage(msgRes.data.item, recipients)
+
+    // Step 3 — pin the message
+    await FlowHandler.run('chat.pinMessage', { chatId, messageId });
+  } catch (_) {
+    // Fire-and-forget — booking is already confirmed, don't surface chat errors
+  }
 }
 
 function clearHoldTimer() {
@@ -746,6 +805,7 @@ const finalizeBooking = async ({ isTopUpDone = false, nextWalletBalance = null }
         title: 'Booking Failed',
         message: extractBackendMessage(result),
       });
+      if (isTopUpDone) props.engine.forceSubstep(PAYMENT_SUBSTEP_SUMMARY, { intent: 'topup-retry' });
       return;
     }
 
@@ -764,6 +824,7 @@ const finalizeBooking = async ({ isTopUpDone = false, nextWalletBalance = null }
 
     fireAndForgetCreateSchedule({ bookingId, eventId });
     fireAndForgetBookingCreated();
+    fireAndForgetPostBookingChat({ bookingId, eventId });
 
     const currentData = props.engine.getState('bookingDetails') || {};
     const walletAfterBooking = Number.isFinite(Number(nextWalletBalance))
@@ -808,6 +869,7 @@ const finalizeBooking = async ({ isTopUpDone = false, nextWalletBalance = null }
       title: 'Booking Failed',
       message: error?.message || 'Could not complete booking.',
     });
+    if (isTopUpDone) props.engine.forceSubstep(PAYMENT_SUBSTEP_SUMMARY, { intent: 'topup-retry' });
   } finally {
     isSubmitting.value = false;
   }
@@ -834,31 +896,41 @@ const enterTopUpSubstep = async () => {
   return true;
 };
 
-const goBackToPaymentSummary = async () => {
-  if (isSubmitting.value || holdLoading.value) return;
-  await props.engine.forceSubstep(PAYMENT_SUBSTEP_SUMMARY, { intent: 'topup-back' });
-};
-
-const finalizeBookingFromTopUp = async () => {
-  if (isSubmitting.value || holdLoading.value || hasBookingCreated.value) return;
-
+function validateBeforeTopUpSubmit() {
+  if (isSubmitting.value || holdLoading.value || hasBookingCreated.value) return false;
   if (!hasActiveHold.value) {
     showToast({
       type: 'error',
       title: 'Slot Hold Expired',
       message: 'Your slot hold expired. Please go back and reserve the slot again.',
     });
-    return;
+    return false;
   }
+  console.log('Top-up form validation passed');
+  return true;
+}
 
+const goBackToPaymentSummary = async () => {
+  if (isSubmitting.value || holdLoading.value) return;
+  await props.engine.forceSubstep(PAYMENT_SUBSTEP_SUMMARY, { intent: 'topup-back' });
+};
+
+const onTopUpPaymentFailed = () => {
+  props.engine.forceSubstep(PAYMENT_SUBSTEP_SUMMARY, { intent: 'topup-payment-failed' });
+};
+
+const onTopUpPaymentSuccess = async () => {
   const toppedUpBalance = walletBalance.value + topUpAmount.value;
   walletBalance.value = toppedUpBalance;
   props.engine.setState('bookingDetails.walletBalance', toppedUpBalance, { reason: 'top-up-preview', silent: true });
-
-  await finalizeBooking({
-    isTopUpDone: true,
-    nextWalletBalance: toppedUpBalance - totalPrice.value,
-  });
+  try {
+    await finalizeBooking({
+      isTopUpDone: true,
+      nextWalletBalance: toppedUpBalance - totalPrice.value,
+    });
+  } finally {
+    topUpFormRef.value?.setProcessingPayment(false);
+  }
 };
 
 // --- BUTTON HANDLERS ---
@@ -970,11 +1042,11 @@ onBeforeUnmount(() => {
 
 <template>
     <div
-      class="relative md:rounded-[20px] h-full lg:w-[852px] overflow-hidden"
+      class="relative lg:rounded-[20px] h-full md:h-dvh lg:h-auto lg:w-[852px] overflow-hidden"
       :style="popupBackgroundStyle"
     >
-      <div class="h-full md:rounded-[20px]">
-      <div class="md:rounded-b-[20px] h-full md:rounded-t-[20px] flex flex-col md:flex-row backdrop-blur-[5px] bg-black/75">
+      <div class="h-full md:h-dvh lg:h-full lg:rounded-[20px] md:px-[10px] md:py-6 lg:p-0 md:bg-black lg:bg-transparent">
+      <div class="md:rounded-b-[20px] h-dvh md:h-full overflow-hidden lg:overflow-visible lg:h-full md:rounded-t-[20px] flex flex-col md:flex-row backdrop-blur-[5px] bg-black/75">
 
             <OneOnOneBookingFlowLeftSideBar
               :time-display="formattedTime"
@@ -988,11 +1060,11 @@ onBeforeUnmount(() => {
               :show-approval-needed="showApprovalNeeded"
             />
 
-          <div class="flex-1 flex w-full lg:flex-row h-auto flex-col justify-between min-h-0 overflow-y-auto lg:overflow-visible [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] max-h-[27.4rem] md:max-h-[40.625rem]">
+          <div class="flex-1 flex w-full lg:flex-row h-auto flex-col justify-between min-h-0 lg:overflow-visible [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]">
 
-            <div class="flex-1 flex-col px-3 pt-3 pb-14 gap-3 backdrop-blur-[5px] lg:overflow-hidden lg:overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]">
+            <div class="flex-1 h-full md:h-auto flex-col px-2 lg:px-3 pt-2 lg:pt-3 lg:pb-14 gap-3 backdrop-blur-[5px] lg:overflow-hidden">
               <template v-if="!isTopUpSubstep">
-                <div class="flex flex-col gap-3">
+                <div class="flex flex-col gap-3 overflow-y-auto lg:overflow-visible h-full flex-1">
                   <div class="rounded-lg bg-white/10 p-5 flex flex-col gap-3">
                     <div class="flex items-center justify-between">
                       <h3 class="text-sm text-[#22CCEE] leading-[20px]">BOOKING SCHEDULE</h3>
@@ -1017,7 +1089,7 @@ onBeforeUnmount(() => {
                     </div>
                   </div>
 
-                  <div class="rounded-lg bg-white/10 flex flex-col overflow-hidden">
+                  <div class="rounded-lg bg-white/10 flex flex-col  mb-14 lg:mb-0">
                     <div class="flex flex-col gap-3 w-full p-5">
                       <h3 class="text-sm text-[#22CCEE] leading-[20px]">PAYMENT SUMMARY</h3>
                       <div class="flex flex-col gap-4">
@@ -1121,7 +1193,7 @@ onBeforeUnmount(() => {
                       </div>
                     </div>
 
-                    <div class="text-white" :style="balanceCardStyle">
+                    <div class="text-white rounded-bl-lg rounded-br-lg overflow-hidden" :style="balanceCardStyle">
                       <div class="flex flex-col gap-2 p-5" style="background: linear-gradient(0deg, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2)), linear-gradient(90deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.5) 100%); backdrop-filter: blur(5px);">
 
                         <div class="flex justify-between items-center">
@@ -1169,11 +1241,15 @@ onBeforeUnmount(() => {
                 </div>
 
                 <TopUpForm
+                  ref="topUpFormRef"
                   :wallet-balance="walletBalance"
                   :top-up-amount="topUpAmount"
                   :total-price="totalPrice"
                   :remaining-balance="remainingBalanceAfterBooking"
+                  :before-submit="validateBeforeTopUpSubmit"
                   @back="goBackToPaymentSummary"
+                  @success="onTopUpPaymentSuccess"
+                  @payment-failed="onTopUpPaymentFailed"
                 />
               </template>
             </div>
@@ -1187,7 +1263,7 @@ onBeforeUnmount(() => {
               type="button"
               :disabled="isCheckingBalance || isSubmitting"
               @click="handleButtonClick"
-              class="w-4/5 md:w-auto flex justify-start items-center"
+              class="w-auto flex justify-start items-center"
               :class="(isCheckingBalance || isSubmitting) ? 'pointer-events-none' : 'cursor-pointer'"
             >
               <div class="relative w-full p-[12px] md:rounded-br-[20px] flex justify-between items-center
@@ -1201,27 +1277,6 @@ onBeforeUnmount(() => {
                 <img :src="bookingFlowArrowRightIcon" alt="arrow-right-icon" />
               </div>
             </div>
-            </button>
-
-            <button
-              v-else
-              type="button"
-              :disabled="isSubmitting || holdLoading || !hasActiveHold"
-              @click="finalizeBookingFromTopUp"
-              class="w-4/5 md:w-auto flex justify-start items-center"
-              :class="(isSubmitting || holdLoading || !hasActiveHold) ? 'pointer-events-none opacity-70' : 'cursor-pointer'"
-            >
-              <div class="relative w-full p-[12px] md:rounded-br-[20px] flex justify-between items-center
-                gap-2 bg-[#07F468] after:content-[''] after:absolute after:right-full after:top-0 after:w-0
-                after:h-0 after:border-t-[3.3125rem] after:border-t-transparent after:border-r-[1rem]
-                after:border-r-[#07F468] after:border-b-0">
-                <p class="text-lg w-full leading-[28px] text-black text-center font-medium">
-                  {{ isSubmitting ? 'PROCESSING...' : (holdLoading ? 'HOLDING SLOT...' : 'TOP UP & PAY') }}
-                </p>
-                <div class="w-6 h-6 flex justify-center items-center">
-                  <img :src="bookingFlowArrowRightIcon" alt="arrow-right-icon" />
-                </div>
-              </div>
             </button>
 
           </div>

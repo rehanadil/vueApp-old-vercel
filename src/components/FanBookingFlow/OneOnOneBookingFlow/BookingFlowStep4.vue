@@ -107,7 +107,7 @@ onMounted(() => {
               </div>
             </div>
           </div>
-      
+
           <div class="w-full p-4 bg-cyan-400/20 rounded-bl-[10px] rounded-br-[10px] backdrop-blur-[5px] flex flex-col justify-between items-start">
             <div class="flex flex-col justify-start items-center gap-2 w-full">
               <div class="flex flex-col justify-start items-center gap-4">
@@ -152,9 +152,9 @@ onMounted(() => {
       </div>
 
 
-      <div 
-        @click="emit('close-popup')" 
-        class="absolute top-3 right-3 z-99 p-[8px] flex justify-center items-center bg-black/30 rounded-[50px] backdrop-blur-[10px] cursor-pointer"
+      <div
+        @click="emit('close-popup')"
+        class="absolute -top-4 -right-3 z-99 p-[8px] flex justify-center items-center bg-black/30 rounded-[50px] backdrop-blur-[10px] cursor-pointer"
       >
         <img :src="bookingFlowCrossWhiteIcon" alt="cross-white" class="w-4 h-4" />
       </div>

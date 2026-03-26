@@ -1,6 +1,6 @@
 import { fileURLToPath, URL } from "node:url";
 
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import vue from "@vitejs/plugin-vue";
 import vueDevTools from "vite-plugin-vue-devtools";
 import fs from "fs-extra";
@@ -46,13 +46,24 @@ async function generateManifest() {
 }
 
 export default defineConfig(({ command, mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  const PROXY_TARGETS = {
+    staging: 'https://new-stage.fansocial.app',
+    local:   'https://localhost:8443',
+  };
+  const proxyTarget = PROXY_TARGETS[env.PROXY_MODE] ?? PROXY_TARGETS.staging;
   const base = command === "serve" ? "/" : FAN_SOCIAL_PLUGIN_BASE;
-
   return {
     base,
     plugins: [vue(), vueDevTools()],
     define: {
       global: "globalThis",
+    },
+    server: {
+      proxy: {
+        "/wp-admin": { target: proxyTarget, changeOrigin: true, secure: false },
+        "/wp-json":  { target: proxyTarget, changeOrigin: true, secure: false },
+      },
     },
     resolve: {
       alias: {

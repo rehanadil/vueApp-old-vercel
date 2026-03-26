@@ -257,6 +257,7 @@ const INVITE_LINK_BASE_URL = import.meta.env.VITE_WEB_BASE_URL + "/event-invite"
 const spendingProductPopupOpen = ref(false);
 const SPENDING_REQUIREMENT_PAGE_SIZE = 20;
 
+
 function emptySpendingCatalogState() {
   return {
     media: {
@@ -926,7 +927,7 @@ const createEvent = async () => {
 
 <template>
   <div class="flex flex-col gap-6 relative px-2 md:px-4 lg:px-6">
-    <div class="flex items-center gap-2 cursor-pointer px-2" @click="goToBack">
+    <div class="flex items-center gap-2 cursor-pointer" @click="goToBack">
       <img src="https://i.ibb.co/CsWd11xX/Icon-2.png" alt="" />
       <div class="text-[12px] font-medium">Back</div>
     </div>
@@ -1250,7 +1251,7 @@ const createEvent = async () => {
               <div class="text-slate-700 text-base font-normal leading-normal">
                 Spending requirement
               </div>
-              <img src="https://i.ibb.co/HD78k3Sf/Icon.png" alt="" />
+              <TooltipIcon text="User must spend at least minimum amount in your shop to book this event" />
             </div>
             <CustomDropdown 
               v-model="formData.spendingRequirement" 
