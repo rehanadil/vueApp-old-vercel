@@ -1,7 +1,15 @@
 <script setup>
+import {
+  bookingFlowAiArtImage,
+  bookingFlowCrossWhiteIcon,
+  bookingFlowProfileImage,
+  bookingFlowSuccessIcon,
+  bookingFlowVerifiedIcon,
+} from "../OneOnOneBookingFlow/oneOnOneBookingFlowAssets.js";
+
 defineProps({
   // --- Header Content ---
-  successIcon: { type: String, default: '/images/success.svg' },
+  successIcon: { type: String, default: bookingFlowSuccessIcon },
   headingText: { type: String, default: "You’re in !" },
   subHeadingText: { type: String, default: "Get ready for your session!" },
 
@@ -27,13 +35,20 @@ defineProps({
 });
 
 const emit = defineEmits(['close']);
+
+const successBackgroundStyle = {
+  backgroundImage: `linear-gradient(180deg, rgba(12, 17, 29, 0) 25%, #0C111D 100%), url('${bookingFlowAiArtImage}')`,
+  backgroundPosition: 'center',
+  backgroundSize: 'cover',
+  backgroundRepeat: 'no-repeat',
+};
 </script>
 
 <template>
   <div class="relative w-96 h-full">
     
     <div class="w-full h-full min-h-0 rounded-[10px] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-      <div class="bg-[linear-gradient(180deg,rgba(12,17,29,0)_25%,#0C111D_100%),url('/images/ai-art.png')] bg-center bg-cover bg-no-repeat backdrop-blur-[1rem] min-h-full flex flex-col">
+      <div class="backdrop-blur-[1rem] min-h-full flex flex-col" :style="successBackgroundStyle">
 
         <div class="p-6 bg-[#00000080] backdrop-blur-[10px] flex flex-col justify-center items-center gap-6">
           <div class="flex flex-col justify-center items-center gap-6">
@@ -59,26 +74,26 @@ const emit = defineEmits(['close']);
               <div class="flex flex-col justify-center gap-[4px]">
                 <div class="flex gap-[6px] justify-center text-white">
                   <div class="w-6 h-6">
-                    <img class="w-full h-full rounded-[50%_50%_50%_50%_/_60%_60%_40%_40%]" src="/images/ex-profile.png" alt="" />
+                    <img class="w-full h-full rounded-[50%_50%_50%_50%_/_60%_60%_40%_40%]" :src="bookingFlowProfileImage" alt="" />
                   </div>
                   <div class="flex md:gap-[6px] gap-1 items-center font-normal">
                     <p class="text-white text-xs lg:text-base leading-6">Princess Carrot Pop</p>
                     <p class="px-[6px] bg-[#FF0066] font-medium text-xs lg:text-sm rounded-[50px]">Host</p>
-                    <img src="/images/verified-blue-white.svg" alt="" />
+                    <img :src="bookingFlowVerifiedIcon" alt="" />
                     <p>,</p>
                   </div>
                 </div>
                 
                 <div class="flex flex-row justify-center gap-2 lg:gap-[6px] text-white">
-                  <div class="w-6 h-6"><img class="w-full h-full rounded-[50%]" src="/images/ex-profile.png" alt="" /></div>
+                  <div class="w-6 h-6"><img class="w-full h-full rounded-[50%]" :src="bookingFlowProfileImage" alt="" /></div>
                   <div class="flex gap-[6px] items-center font-normal">
                     <p class="text-white text-xs lg:text-base leading-6">De La Queen</p>
-                    <img src="/images/verified-blue-white.svg" alt="" />
+                    <img :src="bookingFlowVerifiedIcon" alt="" />
                     <p>,</p>
-                    <div class="w-6 h-6"><img class="w-full h-full rounded-[50%]" src="/images/ex-profile.png" alt="" /></div>
+                    <div class="w-6 h-6"><img class="w-full h-full rounded-[50%]" :src="bookingFlowProfileImage" alt="" /></div>
                     <div class="flex gap-[6px] items-center font-normal">
                       <p class="text-white text-xs lg:text-base leading-6">Buff Bunny</p>
-                      <img src="/images/verified-blue-white.svg" alt="" />
+                      <img :src="bookingFlowVerifiedIcon" alt="" />
                     </div>
                   </div>
                 </div>
@@ -141,7 +156,7 @@ const emit = defineEmits(['close']);
       @click="emit('close')" 
       class="absolute top-4 right-4 z-50 p-[8px] flex justify-center items-center bg-black/30 rounded-[50px] backdrop-blur-[10px] cursor-pointer hover:bg-black/50 transition-all"
     >
-      <img src="/images/cross-white.svg" alt="cross-white" class="w-4 h-4" />
+      <img :src="bookingFlowCrossWhiteIcon" alt="cross-white" class="w-4 h-4" />
     </div>
 
   </div>

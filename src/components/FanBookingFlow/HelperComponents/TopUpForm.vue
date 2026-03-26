@@ -1,4 +1,14 @@
 <script setup>
+import {
+  bookingFlowAccountVerifiedIcon,
+  bookingFlowArrowLeftIcon,
+  bookingFlowAtSignIcon,
+  bookingFlowChevronDownIcon,
+  bookingFlowCreditIcon,
+  bookingFlowDoubleDropdownIcon,
+  bookingFlowTokenIcon,
+} from "../OneOnOneBookingFlow/oneOnOneBookingFlowAssets.js";
+
 defineProps({
   walletBalance: {
     type: Number,
@@ -29,7 +39,7 @@ const emit = defineEmits(['back']);
       @click="emit('back')"
     >
       <div class="w-4 h-4 relative overflow-hidden">
-        <img src="/images/arrow-left.svg" alt="">
+        <img :src="bookingFlowArrowLeftIcon" alt="">
       </div>
       <div class="justify-start text-white text-xs font-medium font-['Poppins'] leading-4">
         Back
@@ -46,7 +56,7 @@ const emit = defineEmits(['back']);
             <div class="flex flex-col gap-6">
                 <div class="inline-flex justify-start items-center gap-1">
                   <div class="relative">
-                      <img class="w-10 h-10" src="/images/token.svg" alt="">
+                      <img class="w-10 h-10" :src="bookingFlowTokenIcon" alt="">
                   </div>
                   <div class="flex-1 h-11 px-1 border-b border-gray-400 inline-flex flex-col justify-center items-start gap-2">
                       <div class="h-11 inline-flex w-full justify-between items-center gap-1">
@@ -78,7 +88,7 @@ const emit = defineEmits(['back']);
 
           <div class="flex flex-col gap-2">
             <div class="h-6 inline-flex justify-start items-center gap-2">
-                <div class="w-5 h-5 relative flex justify-center items-center"><img src="/images/creditIcon.png" alt=""></div>
+                <div class="w-5 h-5 relative flex justify-center items-center"><img :src="bookingFlowCreditIcon" alt=""></div>
                 <div class="justify-center text-gray-50 text-sm font-semibold font-['Poppins'] leading-5">PAYMENT METHOD</div>
             </div>
             <div class="px-4 bg-black/50 rounded-md outline outline-1 outline-offset-[-1px] outline-gray-200/50 flex flex-col gap-6">
@@ -87,14 +97,14 @@ const emit = defineEmits(['back']);
                       <div class="w-56 h-6 justify-center text-gray-200 text-base font-medium font-['Poppins'] leading-6">Chan Tai Man</div>
                       <div class="justify-center text-gray-200 text-base font-medium font-['Poppins'] leading-6 line-clamp-1">VISA-1234</div>
                   </div>
-                  <div class="w-4 h-4 relative overflow-hidden"><img src="/images/chevron-down.webp" alt=""></div>
+                  <div class="w-4 h-4 relative overflow-hidden"><img :src="bookingFlowChevronDownIcon" alt=""></div>
                 </div>
             </div>
           </div>
 
           <div class="flex flex-col gap-2">
             <div class="h-6 inline-flex justify-start items-center gap-2">
-                <div class="w-5 h-5 relative overflow-hidden"><img src="/images/at-sign.png" alt=""></div>
+                <div class="w-5 h-5 relative overflow-hidden"><img :src="bookingFlowAtSignIcon" alt=""></div>
                 <div class="justify-center text-gray-50 text-sm font-semibold font-['Poppins'] leading-5">ACCOUNT EMAIL</div>
             </div>
             <div class="inline-flex justify-start items-end">
@@ -103,7 +113,7 @@ const emit = defineEmits(['back']);
                   <div class="inline-flex flex-col justify-center items-start">
                       <div class="inline-flex justify-start items-center gap-1">
                         <div class="justify-start text-white text-xs font-semibold font-['Poppins'] leading-4 line-clamp-1">mangoes</div>
-                        <div data-size="xs" class="w-2.5 h-2.5 relative overflow-hidden"><img src="/images/svgviewer-png-output-22.webp" alt=""></div>
+                        <div data-size="xs" class="w-2.5 h-2.5 relative overflow-hidden"><img :src="bookingFlowAccountVerifiedIcon" alt=""></div>
                       </div>
                       <div class="justify-start text-gray-500 text-xs font-medium font-['Poppins'] leading-4">mangoes@email.com</div>
                   </div>
@@ -116,7 +126,7 @@ const emit = defineEmits(['back']);
             <div class="inline-flex justify-between w-full">
                 <div class="justify-start text-white text-sm font-normal font-['Poppins'] leading-5">Original balance</div>
                 <div class="flex justify-start items-center gap-1">
-                  <div class="w-4 h-4 relative"><img src="/images/token.svg" alt=""></div>
+                  <div class="w-4 h-4 relative"><img :src="bookingFlowTokenIcon" alt=""></div>
                   <div class="justify-start text-white text-sm font-medium font-['Poppins'] leading-5">{{ walletBalance.toLocaleString() }}</div>
                 </div>
             </div>
@@ -125,7 +135,7 @@ const emit = defineEmits(['back']);
                 <div class="justify-start text-white text-sm font-normal font-['Poppins'] leading-5">Top up amount</div>
                 <div class="flex justify-start items-center gap-1">
                   <div class="justify-start text-white text-sm font-medium font-['Poppins'] leading-5">+</div>
-                  <div class="w-4 h-4 relative"><img src="/images/token.svg" alt=""></div>
+                  <div class="w-4 h-4 relative"><img :src="bookingFlowTokenIcon" alt=""></div>
                   <div class="justify-start text-white text-sm font-medium font-['Poppins'] leading-5">{{ topUpAmount.toLocaleString() }}</div>
                 </div>
             </div>
@@ -135,7 +145,7 @@ const emit = defineEmits(['back']);
             <div class="inline-flex justify-between w-full">
                 <div class="justify-start text-white text-sm font-normal font-['Poppins'] leading-5">Balance after top up</div>
                 <div class="flex justify-start items-center gap-1">
-                  <div class="w-4 h-4 relative"><img src="/images/token.svg" alt=""></div>
+                  <div class="w-4 h-4 relative"><img :src="bookingFlowTokenIcon" alt=""></div>
                   <div class="justify-start text-white text-lg font-semibold font-['Poppins'] leading-7">{{ (walletBalance + topUpAmount).toLocaleString() }}</div>
                 </div>
             </div>
@@ -144,7 +154,7 @@ const emit = defineEmits(['back']);
                 <div class="justify-start text-white text-sm font-normal font-['Poppins'] leading-5">Subtotal</div>
                 <div class="flex justify-start items-center gap-1">
                   <div class="justify-start text-white text-sm font-medium font-['Poppins'] leading-5">-</div>
-                  <div class="w-4 h-4 relative"><img src="/images/token.svg" alt=""></div>
+                  <div class="w-4 h-4 relative"><img :src="bookingFlowTokenIcon" alt=""></div>
                   <div class="justify-start text-white text-sm font-medium font-['Poppins'] leading-5">{{ totalPrice }}</div>
                 </div>
             </div>
@@ -154,7 +164,7 @@ const emit = defineEmits(['back']);
             <div class="inline-flex justify-between w-full">
                 <div class="justify-start text-white text-sm font-semibold font-['Poppins'] leading-5">Balance after booking</div>
                 <div class="flex justify-start items-center gap-1">
-                  <div class="w-4 h-4 relative"><img src="/images/token.svg" alt=""></div>
+                  <div class="w-4 h-4 relative"><img :src="bookingFlowTokenIcon" alt=""></div>
                   <div class="justify-start text-white text-lg font-semibold font-['Poppins'] leading-7">{{ remainingBalance.toLocaleString() }}</div>
                 </div>
             </div>
@@ -167,7 +177,7 @@ const emit = defineEmits(['back']);
             </div>
 
             <div class="opacity-70 inline-flex justify-start items-center gap-0.5">
-                <div class="w-4 h-4 relative overflow-hidden flex justify-center items-center"><img src="/images/doubleDropdown.png" alt=""></div>
+                <div class="w-4 h-4 relative overflow-hidden flex justify-center items-center"><img :src="bookingFlowDoubleDropdownIcon" alt=""></div>
                 <div class="justify-start text-white text-xs font-medium font-['Poppins'] leading-4">Payment Summary</div>
             </div>
           </div>

@@ -255,9 +255,9 @@ function buildPaymentAndSelections(event = {}, durationMinutes = 15, selectedAdd
 
 export function mapCreateBookingToRequest(state = {}, context = {}) {
   const event = resolveSelectedEvent(state);
-  const fanUserId = safeNumber(
-    state?.fanBooking?.context?.fanUserId
-      ?? context?.fanUserId
+  const fanId = safeNumber(
+    state?.fanBooking?.context?.fanId
+      ?? context?.fanId
       ?? context?.userId,
     0,
   );
@@ -280,7 +280,7 @@ export function mapCreateBookingToRequest(state = {}, context = {}) {
 
   return {
     eventId,
-    userId: fanUserId,
+    userId: fanId,
     creatorId,
     startIso: startHkt.iso,
     endIso: endHkt.iso,

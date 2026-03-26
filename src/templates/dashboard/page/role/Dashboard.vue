@@ -126,21 +126,21 @@
 
     <div class="flex gap-8 mb-4">
       <ButtonComponent text="1on1 Booking FlowPopup open" variant="mediaBtn" @click="oneOnOneBookingFlowPopupOpen = true" />
-      [<div class="flex gap-2 mb-4">
+      <div class="flex gap-2 mb-4">
         <button
           class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition"
-          @click="setUserId(2)"
+          @click="openOneOnOneBookingFlowForFan(2516)"
         >
           Test with Unlimited Tokens
         </button>
 
         <button
           class="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition"
-          @click="setUserId(1010)"
+          @click="openOneOnOneBookingFlowForFan(99999)"
         >
           Test with Zero Tokens
         </button>
-      </div>]
+      </div>
     </div>
 
     <br />
@@ -215,7 +215,11 @@
     <PurchaseFlowSubscriptionOrderPopup v-model="purchaseFlowSubscriptionPopupOpen" />
     <GuestPurchaseFlowPopup v-model="guestPurchaseFlowPopupOpen" />
     <UpgradeTierPopup v-model="upgradeTierPopupOpen" />
-    <OneOnOneBookingFlowPopup v-model="oneOnOneBookingFlowPopupOpen" />
+    <OneOnOneBookingFlowPopup
+      v-model="oneOnOneBookingFlowPopupOpen"
+      :creator-id="demoCreatorId"
+      :fan-id="selectedFanId"
+    />
     <TicketEventPopup v-model="ticketEventPopupOpen" />
     <CrowdFundingEventPopup v-model="crowdFundingEventPopupOpen" />
     <TipPopup v-model="tipPopupOpen" />
@@ -289,6 +293,8 @@ const purchaseFlowSubscriptionPopupOpen = ref(false);
 const guestPurchaseFlowPopupOpen = ref(false);
 const upgradeTierPopupOpen = ref(false);
 const oneOnOneBookingFlowPopupOpen = ref(false);
+const demoCreatorId = 1407;
+const selectedFanId = ref(2516);
 const ticketEventPopupOpen = ref(false);
 const crowdFundingEventPopupOpen = ref(false);
 const tipPopupOpen = ref(false);
@@ -300,6 +306,11 @@ const handleImageSave = (data) => {
   console.log("Cropped Data Received:", data);
 };
 const uploadPercentage = ref(0);
+
+function openOneOnOneBookingFlowForFan(fanId) {
+  selectedFanId.value = fanId;
+  oneOnOneBookingFlowPopupOpen.value = true;
+}
 
 // This function is only for demo purposes to show the progress bar in action.
 // Once the actual API is integrated, this will no longer be needed,

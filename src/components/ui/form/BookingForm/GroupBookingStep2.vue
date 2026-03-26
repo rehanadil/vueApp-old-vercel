@@ -1,6 +1,6 @@
 <script setup>
 import { ref, watch } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { useRoute } from "vue-router";
 import CheckboxGroup from "../checkbox/CheckboxGroup.vue";
 import CheckboxSwitch from "@/components/dev/checkbox/CheckboxSwitch.vue";
 import InputComponentDashbaord from "../../../dev/input/InputComponentDashboard.vue";
@@ -9,9 +9,10 @@ import ButtonComponent from "@/components/dev/button/ButtonComponent.vue";
 import BookingSectionsWrapper from "../BookingForm/HelperComponents/BookingSectionsWrapper.vue";
 import BaseInput from "@/components/dev/input/BaseInput.vue";
 import { showToast } from "@/utils/toastBus.js";
+import { resolveCreatorIdFromContext } from "@/utils/contextIds.js";
 
 const props = defineProps(["engine"]);
-const router = useRouter();
+const emit = defineEmits(["created"]);
 const route = useRoute();
 const isCreating = ref(false);
 
@@ -49,19 +50,11 @@ const goToBack = () => {
 };
 
 function resolveCreatorId() {
-  return 1407;
-  const routeCreatorId = Number(route.query?.creatorId);
-  if (Number.isFinite(routeCreatorId)) return routeCreatorId;
-
-  const engineCreatorId = Number(props.engine.getState("creatorId"));
-  if (Number.isFinite(engineCreatorId)) return engineCreatorId;
-
-  if (typeof window !== "undefined") {
-    const storageCreatorId = Number(window.localStorage?.getItem("creatorId"));
-    if (Number.isFinite(storageCreatorId)) return storageCreatorId;
-  }
-
-  return 1;
+  return resolveCreatorIdFromContext({
+    route,
+    engine: props.engine,
+    fallback: 1,
+  });
 }
 
 function formatValidationErrors(errors = []) {
@@ -86,6 +79,7 @@ const createEvent = async () => {
         context: {
           stateEngine: props.engine,
           creatorId: resolveCreatorId(),
+          apiBaseUrl: props.engine.getState("apiBaseUrl") || undefined,
         },
       });
 
@@ -100,13 +94,9 @@ const createEvent = async () => {
         });
         return;
       }
-
-      await router.push({
-        path: "/dashboard/events",
-        query: {
-          refresh: "1",
-          creatorId: String(resolveCreatorId()),
-        },
+      emit("created", {
+        creatorId: resolveCreatorId(),
+        flowResult,
       });
     } finally {
       isCreating.value = false;

@@ -12,16 +12,33 @@ import {
   isRangeBooked,
 } from '@/services/bookings/utils/bookingSlotUtils.js';
 import { addMinutesToHm } from '@/services/events/eventsApiUtils.js';
+import {
+  bookingFlowArrowRightIcon,
+  bookingFlowBackgroundImage,
+  bookingFlowCheckIcon,
+  bookingFlowCloudMoonIcon,
+  bookingFlowTokenIcon,
+} from './oneOnOneBookingFlowAssets.js';
+import { resolveCreatorPresentation } from './creatorPresentation.js';
 
 const props = defineProps({
   engine: {
     type: Object,
     required: true
-  }
+  },
+  embedded: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const selectedEvent = computed(() => props.engine.getState('fanBooking.context.selectedEvent') || null);
 const bookedSlotsIndex = computed(() => props.engine.getState('fanBooking.catalog.bookedSlotsIndex') || {});
+const creatorPresentation = computed(() => resolveCreatorPresentation({
+  explicitCreatorData: props.engine.getState('fanBooking.context.creatorPresentation'),
+  selectedEvent: selectedEvent.value,
+  bookingResult: props.engine.getState('fanBooking.booking.result'),
+}));
 
 // --- CALENDAR LOGIC ---
 const now = new Date();
@@ -64,6 +81,17 @@ const addons = ref([]);
 const otherRequest = ref('');
 
 const selectedDateIso = computed(() => (state.selected ? formatLocalDateIso(state.selected) : null));
+const popupBackgroundStyle = computed(() => ({
+  backgroundImage: `url('${bookingFlowBackgroundImage}')`,
+  backgroundSize: 'cover',
+  backgroundRepeat: 'no-repeat',
+  backgroundPosition: 'left 50% center',
+}));
+const actionFooterClass = computed(() => (
+  props.embedded
+    ? 'flex-none flex justify-end z-[99] absolute bottom-0 left-0 w-full'
+    : 'flex-none flex justify-end z-[99] fixed bottom-0 left-0 w-full'
+));
 
 const candidateSlots = computed(() => {
   if (!selectedEvent.value || !selectedDateIso.value) return [];
@@ -578,8 +606,8 @@ onMounted(() => {
 
 <template>
   <div
-    class="md:rounded-[20px] h-full lg:w-[852px] overflow-hidden"
-    style="background-image: url('/images/background.png'); background-size: cover; background-repeat: no-repeat; background-position: left 50% center;"
+    class="relative md:rounded-[20px] h-full lg:w-[852px] overflow-hidden"
+    :style="popupBackgroundStyle"
   >
     <div class="backdrop-blur-[10px] h-full md:rounded-[20px] bg-[#0C111D96]">
       <div class="md:rounded-b-[20px] h-full md:rounded-t-[20px] flex bg-black/50 flex-col md:flex-row">
@@ -590,6 +618,9 @@ onMounted(() => {
           :subtotal="totalPrice"
           :duration="currentDuration"
           :title-display="selectedEvent?.title || 'High School Life Simulator'"
+          :creator-avatar="creatorPresentation.avatar"
+          :creator-name="creatorPresentation.name"
+          :creator-is-verified="creatorPresentation.isVerified"
           :show-approval-needed="showApprovalNeeded"
         />
 
@@ -680,7 +711,7 @@ onMounted(() => {
 
                   <div v-if="false && slot.disabled" class="text-xs text-red-300">Booked</div>
                   <div v-else-if="slot.isOffHours && selectedTime?.value !== slot.value" class="absolute right-[0] top-[-0.3rem]">
-                    <img src="/images/cloud-moon.svg" alt="peak-icon" />
+                    <img :src="bookingFlowCloudMoonIcon" alt="peak-icon" />
                   </div>
                 </div>
               </div>
@@ -732,14 +763,14 @@ onMounted(() => {
                       class="flex justify-center items-center w-[0.9375rem] h-[0.9375rem] p-[0.15625rem] rounded-[0.25rem]"
                       :class="addon.selected ? 'border border-[#07F468] bg-[#07F468]' : 'border-2 border-[#667085]'"
                     >
-                      <img v-if="addon.selected" src="/images/check.svg" alt="check-icon" class="w-[0.46875rem] h-[0.3125rem]" />
+                      <img v-if="addon.selected" :src="bookingFlowCheckIcon" alt="check-icon" class="w-[0.46875rem] h-[0.3125rem]" />
                     </div>
                     <p class="text-sm leading-[20px] font-medium">{{ addon.name }}</p>
                   </div>
                   <div class="flex flex-row justify-end items-center gap-0.5">
                     <p class="text-sm leading-[20px] font-semibold">+</p>
                     <div class="flex justify-center items-center w-[1.25rem] h-[1.25rem]">
-                      <img src="/images/token.svg" alt="token-icon" />
+                      <img :src="bookingFlowTokenIcon" alt="token-icon" />
                     </div>
                     <p class="text-sm leading-[20px] font-semibold">{{ addon.price }}</p>
                   </div>
@@ -768,7 +799,7 @@ onMounted(() => {
 
         </div>
 
-        <div v-if="state.selected && hasAvailableSlots" class="flex-none flex justify-end z-[99] fixed bottom-0 left-0 w-full">
+        <div v-if="state.selected && hasAvailableSlots" :class="actionFooterClass">
           <button
             :disabled="bottomActionDisabled"
             @click="goToNextStep"
@@ -783,7 +814,7 @@ onMounted(() => {
                 {{ isPreviewReadOnly ? 'PREVIEW ONLY' : 'PAYMENT SUMMARY' }}
               </p>
               <div class="w-6 h-6 flex justify-center items-center">
-                <img src="/images/arrow-right.svg" alt="arrow-right-icon" />
+                <img :src="bookingFlowArrowRightIcon" alt="arrow-right-icon" />
               </div>
             </div>
           </button>

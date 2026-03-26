@@ -1,5 +1,5 @@
   <script setup>
-  import { onMounted, onUnmounted, ref, watch } from "vue";
+  import { computed, onMounted, onUnmounted, ref, watch } from "vue";
   import CheckboxGroup from "../checkbox/CheckboxGroup.vue";
   import ButtonComponent from "@/components/dev/button/ButtonComponent.vue";
   import BookingSectionsWrapper from "../BookingForm/HelperComponents/BookingSectionsWrapper.vue";
@@ -38,7 +38,37 @@
   ];
 
   // Accept Engine
-  const props = defineProps(['engine']);
+  const props = defineProps({
+    engine: {
+      type: Object,
+      required: true,
+    },
+    embedded: {
+      type: Boolean,
+      default: false,
+    },
+  });
+  const DEFAULT_VUE_CREATOR_ID = 1407;
+
+  function ensureVueCreatorIdFallback() {
+    if (props.embedded) return;
+
+    const currentCreatorId = Number(props.engine?.getState?.("creatorId") ?? props.engine?.state?.creatorId);
+    if (Number.isFinite(currentCreatorId) && currentCreatorId > 0) return;
+
+    props.engine.setState("creatorId", DEFAULT_VUE_CREATOR_ID, {
+      reason: "booking-step1-default-creator",
+      silent: true,
+    });
+  }
+
+  const footerClass = computed(() => {
+    if (props.embedded) {
+      return "sticky bottom-0 z-20 flex justify-end border-t border-slate-200/70 bg-[linear-gradient(180deg,rgba(249,250,251,0.6)_0%,rgba(249,250,251,0.96)_35%,rgba(249,250,251,1)_100%)] px-2 pt-3 md:px-4 lg:px-6";
+    }
+
+    return "flex justify-end fixed bottom-0 right-0";
+  });
 
   // Refs
   // Refs
@@ -204,6 +234,8 @@
   });
 
   onMounted(() => {
+    ensureVueCreatorIdFallback();
+
     // Quill Setup (Preserved exactly as provided)
     const icons = Quill.import('ui/icons');
     icons['bold'] = '<img src="https://i.ibb.co/HLRRqmHp/bold-icon.webp" alt="bold" style="width:30px;">';
@@ -1528,7 +1560,7 @@
 
 
     </form>
-    <div class="flex justify-end fixed bottom-0 right-0">
+    <div :class="footerClass">
       <ButtonComponent @click="goToNext" text="Next" variant="polygonLeft"
         :rightIcon="'https://i.ibb.co/hx8ztZFf/svgviewer-png-output-8.webp'" :rightIconClass="`
           w-6 h-6 transition duration-200

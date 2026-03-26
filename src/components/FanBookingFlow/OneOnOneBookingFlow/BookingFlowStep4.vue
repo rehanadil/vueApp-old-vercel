@@ -1,10 +1,22 @@
 <script setup>
 import { computed, onMounted } from 'vue';
+import {
+  bookingFlowBackgroundImage,
+  bookingFlowCrossWhiteIcon,
+  bookingFlowMessageGreenIcon,
+  bookingFlowPendingIcon,
+  bookingFlowVerifiedIcon,
+} from './oneOnOneBookingFlowAssets.js';
+import { resolveCreatorPresentation } from './creatorPresentation.js';
 
 const props = defineProps({
   engine: {
     type: Object,
     required: true,
+  },
+  embedded: {
+    type: Boolean,
+    default: false,
   },
 });
 
@@ -14,6 +26,11 @@ const bookingData = computed(() => props.engine.getState('bookingDetails') || {}
 const selectedEvent = computed(() => props.engine.getState('fanBooking.context.selectedEvent') || {});
 const bookingResult = computed(() => props.engine.getState('fanBooking.booking.result') || {});
 const bookingItem = computed(() => bookingResult.value?.item || {});
+const creatorPresentation = computed(() => resolveCreatorPresentation({
+  explicitCreatorData: props.engine.getState('fanBooking.context.creatorPresentation'),
+  selectedEvent: selectedEvent.value,
+  bookingResult: bookingResult.value,
+}));
 
 const formattedDate = computed(() => bookingData.value.headerDateDisplay || 'Tomorrow April 27, 2025');
 const timeRange = computed(() => bookingData.value.formattedTimeRange || '4:00pm-4:15pm');
@@ -25,13 +42,7 @@ const eventTitle = computed(() => (
   || 'High School Life Simulator'
 ));
 
-const creatorLabel = computed(() => (
-  selectedEvent.value?.creatorDisplayName
-  || selectedEvent.value?.creatorName
-  || selectedEvent.value?.raw?.creatorDisplayName
-  || selectedEvent.value?.raw?.creatorName
-  || 'Princess Carrot Pop'
-));
+const creatorLabel = computed(() => creatorPresentation.value.name);
 
 function toBoolean(value, fallback = false) {
   if (typeof value === 'boolean') return value;
@@ -62,6 +73,13 @@ const topMessage = computed(() => (
     : 'Sit tight - your request is pending approval from creator.'
 ));
 
+const successBackgroundStyle = computed(() => ({
+  backgroundImage: `linear-gradient(180deg, rgba(12, 17, 29, 0) 25%, #0C111D 100%), url('${bookingFlowBackgroundImage}')`,
+  backgroundPosition: 'center',
+  backgroundSize: 'cover',
+  backgroundRepeat: 'no-repeat',
+}));
+
 onMounted(() => {
   const hasBooking = Boolean(
     props.engine.getState('fanBooking.booking.bookingId')
@@ -76,13 +94,13 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="flex-1 w-96 h-full min-h-0 rounded-[10px] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] ">
+  <div class="relative w-full max-w-[24rem] h-full min-h-0 rounded-[10px] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] ">
 
-      <div class="bg-[linear-gradient(180deg,rgba(12,17,29,0)_25%,#0C111D_100%),url('/images/background.png')] bg-center bg-cover bg-no-repeat backdrop-blur-[1rem]">
+      <div class="backdrop-blur-[1rem]" :style="successBackgroundStyle">
 
           <div class="p-6 bg-[#00000080] backdrop-blur-[10px] flex flex-col justify-center items-center gap-6">
             <div class="flex flex-col justify-center items-center gap-6">
-              <img class="w-36 h-36" src="/images/pending.svg" />
+              <img class="w-36 h-36" :src="bookingFlowPendingIcon" alt="" />
               <div class="flex flex-col justify-start items-start gap-2">
                 <div class="text-center justify-center text-white text-2xl font-semibold leading-8">{{ topTitle }}</div>
                 <div class="text-center justify-center text-white text-base font-normal leading-6">{{ topMessage }}</div>
@@ -95,11 +113,11 @@ onMounted(() => {
               <div class="flex flex-col justify-start items-center gap-4">
                 <div class="flex flex-col justify-start items-center gap-2 w-full">
                   <div class="inline-flex justify-center items-center gap-2">
-                    <img class="w-8 h-8" src="/images/ex-profile.png" />
+                    <img class="w-8 h-8" :src="creatorPresentation.avatar" alt="" />
                     <div class="flex justify-start items-center gap-1">
                       <div class="justify-start text-white text-sm font-medium leading-5 line-clamp-1">{{ creatorLabel }}</div>
-                      <div data-size="sm" class="w-3 h-3 relative overflow-hidden">
-                        <img src="/images/verified-blue-white.svg" alt="">
+                      <div v-if="creatorPresentation.isVerified" data-size="sm" class="w-3 h-3 relative overflow-hidden">
+                        <img :src="bookingFlowVerifiedIcon" alt="">
                       </div>
                     </div>
                   </div>
@@ -125,7 +143,7 @@ onMounted(() => {
             <div class="w-full flex flex-col justify-start items-center gap-2 mt-[50px]">
               <div class="self-stretch h-10 min-w-24 pl-2 pr-6 py-2 bg-gray-900 inline-flex justify-center items-center gap-2 cursor-pointer">
                 <div class="w-6 h-6 relative overflow-hidden">
-                  <img src="/images/message-green.svg" alt="message-icon" />        
+                  <img :src="bookingFlowMessageGreenIcon" alt="message-icon" />
                 </div>
                 <div class="text-center justify-start text-green-500 text-base font-medium leading-6">Message {{ creatorLabel }}</div>
               </div>
@@ -136,9 +154,9 @@ onMounted(() => {
 
       <div 
         @click="emit('close-popup')" 
-        class="absolute -top-4 -right-3 z-99 p-[8px] flex justify-center items-center bg-black/30 rounded-[50px] backdrop-blur-[10px] cursor-pointer"
+        class="absolute top-3 right-3 z-99 p-[8px] flex justify-center items-center bg-black/30 rounded-[50px] backdrop-blur-[10px] cursor-pointer"
       >
-        <img src="/images/cross-white.svg" alt="cross-white" class="w-4 h-4" />
+        <img :src="bookingFlowCrossWhiteIcon" alt="cross-white" class="w-4 h-4" />
       </div>
 
     </div>

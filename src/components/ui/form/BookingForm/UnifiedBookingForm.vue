@@ -1,6 +1,6 @@
 <script setup>
 import { onMounted, reactive, ref, computed, watch } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import DashboardWrapperTwoColContainer from "@/components/dashboard/DashboardWrapperTwoColContainer.vue";
 import { createFlowStateEngine, attachEngineLogging } from "@/utils/flowStateEngine.js"; // Adjust path if needed
 
@@ -17,6 +17,7 @@ import { mapBookedSlotsToCalendarEvents, mapAvailabilityToCalendarEvents } from 
 import { addDays, startOfWeek } from "@/utils/calendarHelpers.js";
 import { useBodyOverflowHidden } from "@/composables/useBodyOverflowHidden";
 import { mapDraftEventToFanBookingPreview } from "@/services/events/mappers/mapDraftEventToFanBookingPreview.js";
+import { resolveCreatorIdFromContext } from "@/utils/contextIds.js";
 
 // Import Validators
 import { step1Validator, step2Validator } from "@/services/events/validators/eventStepValidators.js";
@@ -24,12 +25,31 @@ import { step1Validator, step2Validator } from "@/services/events/validators/eve
 const props = defineProps({
     type: {
         type: String,
-        default: "private",
-        validator: (value) => ["private", "group"].includes(value),
-    }
+        default: "",
+        validator: (value) => value === "" || ["private", "group"].includes(value),
+    },
+    creatorId: {
+        type: [Number, String],
+        default: null,
+    },
+    apiBaseUrl: {
+        type: String,
+        default: "",
+    },
+    creatorData: {
+        type: Object,
+        default: null,
+    },
+    embedded: {
+        type: Boolean,
+        default: false,
+    },
 });
 
+const emit = defineEmits(["created", "back"]);
 const route = useRoute();
+const router = useRouter();
+const DEFAULT_VUE_CREATOR_ID = 1407;
 
 /**
  * Determine the active type.
@@ -39,11 +59,13 @@ const route = useRoute();
  * 3. Default to 'private'
  */
 const currentType = computed(() => {
-    // If route query is explicitly present, it takes precedence for direct access
+    if (props.type === "group" || props.type === "private") {
+        return props.type;
+    }
     if (route.query.type === 'group' || route.query.type === 'private') {
         return route.query.type;
     }
-    return props.type;
+    return "private";
 });
 
 // Initialize State Engine
@@ -174,14 +196,12 @@ bookingFlow.addValidator(1, step1Validator);
 bookingFlow.addValidator(2, step2Validator);
 
 const resolveCreatorId = () => {
-    return 1407;
-    const creatorFromRoute = Number(route.query?.creatorId);
-    const creatorFromStorage = typeof window !== "undefined"
-        ? Number(window.localStorage?.getItem("creatorId"))
-        : NaN;
-    return Number.isFinite(creatorFromRoute)
-        ? creatorFromRoute
-        : (creatorFromStorage || 1);
+    return resolveCreatorIdFromContext({
+        preferredId: props.creatorId,
+        route,
+        engine: bookingFlow,
+        fallback: props.embedded ? 1 : DEFAULT_VUE_CREATOR_ID,
+    });
 };
 
 const previewEventForFanFlow = computed(() => {
@@ -223,6 +243,7 @@ const fetchCreatorBookedSlots = async (forceRefresh = false) => {
             context: {
                 stateEngine: bookingFlow,
                 creatorId,
+                apiBaseUrl: props.apiBaseUrl || undefined,
             },
         },
     );
@@ -272,6 +293,7 @@ const fetchCreatorBookedSlots = async (forceRefresh = false) => {
 onMounted(() => {
     bookingFlow.initialize();
     const resolvedCreatorId = resolveCreatorId();
+    bookingFlow.setState("apiBaseUrl", props.apiBaseUrl || "", { reason: "initial-api-base-url", silent: true });
     bookingFlow.setState("creatorId", resolvedCreatorId, { reason: "initial-create-flow", silent: true });
     bookingFlow.setState(
         "eventType",
@@ -296,9 +318,17 @@ watch(currentType, (nextType) => {
 });
 
 watch(
-    () => route.query?.creatorId,
+    () => [props.creatorId, route.query?.creatorId],
     () => {
+        bookingFlow.setState("creatorId", resolveCreatorId(), { reason: "creator-context-sync", silent: true });
         fetchCreatorBookedSlots(true);
+    },
+);
+
+watch(
+    () => props.apiBaseUrl,
+    (nextValue) => {
+        bookingFlow.setState("apiBaseUrl", nextValue || "", { reason: "api-base-url-sync", silent: true });
     },
 );
 
@@ -653,45 +683,98 @@ const formTitle = computed(() => {
     return currentType.value === 'group' ? 'Group Event Settings' : 'Private Booking Settings';
 });
 
+const handleCreateFlowCreated = async (payload) => {
+    if (props.embedded) {
+        emit("created", payload);
+        return;
+    }
+
+    await router.push({
+        path: "/dashboard/events",
+        query: {
+            refresh: "1",
+            creatorId: String(resolveCreatorId()),
+        },
+    });
+};
+
 // Disable and hide body overflow when this component is active to prevent background scrolling
 useBodyOverflowHidden({ minWidth: 1010 });
 </script>
 
 <template>
-    <DashboardWrapperTwoColContainer>
+    <component :is="embedded ? 'div' : DashboardWrapperTwoColContainer" :class="embedded ? 'h-full overflow-hidden' : ''">
         <ToastHost />
-        <div class="flex w-full flex-col lg:flex-row gap-4 lg:gap-0">
+        <div :class="[embedded ? 'h-full overflow-hidden' : '', 'flex w-full flex-col lg:flex-row gap-4 lg:gap-0']">
             <div
-                class="flex h-full flex-col gap-6 relative w-full lg:w-[500px] lg:min-w-[500px] bg-white/50 shadow-[0px_4px_6px_-2px_rgba(16,24,40,0.03)] backdrop-blur-xl lg:overflow-y-auto overflow-x-hidden lg:no-scrollbar lg:h-dvh lg:max-h-dvh lg:pb-4">
+                :class="[
+                    embedded
+                        ? 'flex h-full min-h-0 flex-col gap-6 relative w-full lg:w-[500px] lg:min-w-[500px] bg-white/50 shadow-[0px_4px_6px_-2px_rgba(16,24,40,0.03)] backdrop-blur-xl overflow-x-hidden lg:overflow-y-auto lg:no-scrollbar'
+                        : 'flex h-full flex-col gap-6 relative w-full lg:w-[500px] lg:min-w-[500px] bg-white/50 shadow-[0px_4px_6px_-2px_rgba(16,24,40,0.03)] backdrop-blur-xl lg:overflow-y-auto overflow-x-hidden lg:no-scrollbar lg:h-dvh lg:max-h-dvh'
+                ]">
 
-                <div class="px-2 md:px-4 lg:px-6 pt-6 pb-2 bg-white/20 flex justify-between items-center">
-                    <div class="justify-start text-slate-700 text-base font-semibold leading-6">
-                        {{ formTitle }}
+                <div class="px-2 md:px-4 lg:px-6 pt-6 pb-2 bg-white/20 flex justify-between items-center gap-3">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <button
+                            v-if="embedded"
+                            type="button"
+                            class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 transition hover:bg-slate-50"
+                            aria-label="Back to events"
+                            @click="emit('back')"
+                        >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <path
+                                    d="M15 18L9 12L15 6"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                />
+                            </svg>
+                        </button>
+
+                        <div class="justify-start text-slate-700 text-base font-semibold leading-6 truncate">
+                            {{ formTitle }}
+                        </div>
                     </div>
                     <div class="w-2.5 h-2.5 relative overflow-hidden">
                         <img src="https://i.ibb.co/G4Y3BB6c/Icon.png" alt="" />
                     </div>
                 </div>
 
-                <div class="w-full h-dvh max-h-dvh overflow-y-auto">
+                <div :class="[embedded ? 'w-full h-full min-h-0 overflow-y-auto' : 'w-full h-dvh max-h-dvh overflow-y-auto']">
                     <!-- Private Form -->
                     <template v-if="currentType === 'private'">
-                        <OneOnOneBookinStep1 v-if="currentStep === 1" :engine="bookingFlow" />
+                        <OneOnOneBookinStep1
+                            v-if="currentStep === 1"
+                            :engine="bookingFlow"
+                            :embedded="embedded"
+                        />
 
-                        <OneOnOneBookinStep2 v-if="currentStep === 2" :engine="bookingFlow" />
+                        <OneOnOneBookinStep2
+                            v-if="currentStep === 2"
+                            :engine="bookingFlow"
+                            :embedded="embedded"
+                            @created="handleCreateFlowCreated"
+                        />
                     </template>
 
                     <!-- Group Form -->
                     <template v-else-if="currentType === 'group'">
                         <GroupBookingStep1 v-if="currentStep === 1" :engine="bookingFlow" />
 
-                        <GroupBookingStep2 v-if="currentStep === 2" :engine="bookingFlow" />
+                        <GroupBookingStep2 v-if="currentStep === 2" :engine="bookingFlow" @created="handleCreateFlowCreated" />
                     </template>
                 </div>
 
             </div>
 
-            <div class="w-full lg:overflow-y-auto lg:no-scrollbar lg:h-dvh lg:max-h-dvh lg:pb-4">
+            <div
+                :class="[
+                    embedded
+                        ? 'w-full min-h-0 lg:h-full lg:overflow-y-auto lg:no-scrollbar lg:pb-4'
+                        : 'w-full lg:overflow-y-auto lg:no-scrollbar lg:h-dvh lg:max-h-dvh lg:pb-4'
+                ]">
                 <NotificationCard variant="alert" :showIcon="false" title="Your are now viewing your booking setting in personal event calendar view."
                     description="To preview how your booking schedule will look like on your profile, go to preview booking schedule."  />
                 <div v-if="calendarError" class="mx-6 mt-3 px-3 py-2 rounded bg-red-50 text-red-700 text-xs font-medium">
@@ -779,10 +862,10 @@ useBodyOverflowHidden({ minWidth: 1010 });
             </div>
 
         </div>
-    </DashboardWrapperTwoColContainer>
+    </component>
 
     <!-- Debug Section (as requested) -->
-    <div class="mt-8 p-6 bg-gray-100 dark:bg-slate-800 rounded-lg border border-gray-300 dark:border-gray-700">
+    <div v-if="!embedded" class="mt-8 p-6 bg-gray-100 dark:bg-slate-800 rounded-lg border border-gray-300 dark:border-gray-700">
         <div class="flex justify-between items-center mb-4">
             <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Debug / State Manager</h3>
         </div>
@@ -816,6 +899,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
 
     <OneOnOneBookingFlowPopup
         v-model="previewSchedule"
+        :creator-data="creatorData"
         :preview-mode="true"
         :preview-event="previewEventForFanFlow"
         :preview-booked-slots="previewBookedSlotsForFanFlow"

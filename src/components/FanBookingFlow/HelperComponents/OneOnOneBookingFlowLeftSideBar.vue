@@ -1,5 +1,11 @@
 <script setup>
-defineProps({
+import {
+  bookingFlowDotsIcon,
+  bookingFlowProfileImage,
+  bookingFlowVerifiedIcon,
+} from "../OneOnOneBookingFlow/oneOnOneBookingFlowAssets.js";
+
+const props = defineProps({
   timeDisplay: {
     type: String,
     default: '-'
@@ -24,6 +30,18 @@ defineProps({
   titleDisplay: {
     type: String,
     default: 'High School Life Simulator'
+  },
+  creatorAvatar: {
+    type: String,
+    default: bookingFlowProfileImage,
+  },
+  creatorName: {
+    type: String,
+    default: 'Princess Carrot Pop',
+  },
+  creatorIsVerified: {
+    type: Boolean,
+    default: false,
   },
   showApprovalNeeded: {
     type: Boolean,
@@ -51,17 +69,17 @@ defineProps({
             <h1 class="no-underline text-xl md:text-2xl font-semibold text-[#F2F4F7] leading-[32px]">{{ titleDisplay }}</h1>
             <div class="flex flex-row items-center gap-2">
               <div class="w-6 h-6 flex justify-center items-center">
-                <img src="/images/ex-profile.png" alt="profile-image" class="w-full h-full object-cover" style="border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%" />
+                <img :src="props.creatorAvatar || bookingFlowProfileImage" alt="profile-image" class="w-full h-full object-cover" style="border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%" />
               </div>
               <div class="flex flex-row items-center gap-1">
-                <p class="text-xs font-medium leading-[18px]">Princess Carrot Pop</p>
-                <div class="w-4 h-4 flex justify-center items-center">
-                  <img src="/images/verified-blue-white.svg" alt="verified-icon" />
+                <p class="text-xs font-medium leading-[18px]">{{ props.creatorName }}</p>
+                <div v-if="props.creatorIsVerified" class="w-4 h-4 flex justify-center items-center">
+                  <img :src="bookingFlowVerifiedIcon" alt="verified-icon" />
                 </div>
               </div>
             </div>
             <div v-if="showApprovalNeeded" class="bg-[#0C111D] rounded-[6px] lg:hidden p-[0.3125rem_0.375rem] w-fit min-h-[28px] flex justify-center items-center gap-2">
-              <div class="w-4 h-4 flex justify-center items-center"><img src="/images/dots.svg" alt="status-icon" /></div>
+              <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowDotsIcon" alt="status-icon" /></div>
               <div class="text-[11px] text-[#FFED29] font-semibold leading-[18px] italic">APPROVAL NEEDED</div>
             </div>
           </div>
@@ -76,10 +94,10 @@ defineProps({
                 Token equivalent of your session fee will be on hold in your balance until the call starts. A non-refundable booking fee of 100 tokens 
               </li>
               <li>
-                If Princess Carrot Pop does not show up to the confirm call on time, you will be refund partially.
+                If {{ props.creatorName }} does not show up to the confirm call on time, you will be refund partially.
               </li>
               <li>
-                If Princess Carrot Pop does not show up to the confirm call within a buffer time of 5 minutes, you will be refunded fully.
+                If {{ props.creatorName }} does not show up to the confirm call within a buffer time of 5 minutes, you will be refunded fully.
               </li>
               <li>
                 If you do to show up to the confirm call within a buffer time of 5 minutes, the session will be canceled and minimum charge will be deducted from your account. Cancel the session 1 day in advance to avoid panelty.

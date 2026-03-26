@@ -21,6 +21,20 @@ function buildBookedSlotParams(payload = {}) {
   };
 }
 
+function resolveBookedSlotsEndpoint(baseUrl, payload = {}) {
+  const creatorId = toNumber(payload.creatorId, null);
+  const fanId = toNumber(payload.fanId, null);
+  const userRole = typeof payload.userRole === "string"
+    ? payload.userRole.trim().toLowerCase()
+    : "";
+
+  if (userRole === "fan" && fanId != null) {
+    return `${baseUrl}/bookings/fans/${fanId}/booked-slots`;
+  }
+
+  return `${baseUrl}/bookings/creators/${creatorId}/booked-slots`;
+}
+
 function readCachedRawEvents(context) {
   const engine = context?.stateEngine;
   if (!engine || typeof engine.getState !== "function") return [];
@@ -65,8 +79,7 @@ export async function fetchCreatorBookingContextFlow({ payload, context, api }) 
       ? readCachedRawEvents(context)
       : (Array.isArray(eventsResponse?.items) ? eventsResponse.items : []);
 
-    const creatorId = toNumber(payload.creatorId, null);
-    const bookedSlotsResponse = await api.get(`${baseUrl}/bookings/creators/${creatorId}/booked-slots`, {
+    const bookedSlotsResponse = await api.get(resolveBookedSlotsEndpoint(baseUrl, payload), {
       params: buildBookedSlotParams(payload),
       signal: context.signal,
       timeoutMs: context.requestTimeoutMs,

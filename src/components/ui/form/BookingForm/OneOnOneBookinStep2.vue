@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, onUnmounted, ref, watch } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { useRoute } from "vue-router";
 import CheckboxGroup from "../checkbox/CheckboxGroup.vue";
 import CheckboxSwitch from "@/components/dev/checkbox/CheckboxSwitch.vue";
 import InputComponentDashbaord from "../../../dev/input/InputComponentDashboard.vue";
@@ -18,6 +18,7 @@ import {
   fetchActiveSubscriptionTiers,
   searchInvitableUsers,
 } from "@/services/events/eventsAudienceApi.js";
+import { resolveCreatorIdFromContext } from "@/utils/contextIds.js";
 
 const whoCanBookOptions = [
   { label: 'Everyone', value: 'everyone' },
@@ -31,10 +32,20 @@ const spendingRequirementOptions = [
   { label: 'User need to buy specific product(s) to join', value: 'mustOwnProducts' }
 ];
 
-const props = defineProps(["engine"]);
-const router = useRouter();
+const props = defineProps({
+  engine: {
+    type: Object,
+    required: true,
+  },
+  embedded: {
+    type: Boolean,
+    default: false,
+  },
+});
+const emit = defineEmits(["created"]);
 const route = useRoute();
 const isCreating = ref(false);
+const DEFAULT_VUE_CREATOR_ID = 1407;
 
 function normalizeSelectionArray(value) {
   if (Array.isArray(value)) {
@@ -231,6 +242,11 @@ const handleBlockedUserClickOutside = (event) => {
 };
 
 onMounted(() => {
+  const creatorId = resolveCreatorId();
+  props.engine.setState("creatorId", creatorId, {
+    reason: "booking-step2-default-creator",
+    silent: true,
+  });
   document.addEventListener("click", handleBlockedUserClickOutside);
 });
 
@@ -655,19 +671,11 @@ function onConfirmSpendingProducts(selectedItems = []) {
 }
 
 function resolveCreatorId() {
-  return 1407;
-  const routeCreatorId = Number(route.query?.creatorId);
-  if (Number.isFinite(routeCreatorId)) return routeCreatorId;
-
-  const engineCreatorId = Number(props.engine.getState("creatorId"));
-  if (Number.isFinite(engineCreatorId)) return engineCreatorId;
-
-  if (typeof window !== "undefined") {
-    const storageCreatorId = Number(window.localStorage?.getItem("creatorId"));
-    if (Number.isFinite(storageCreatorId)) return storageCreatorId;
-  }
-
-  return 1;
+  return resolveCreatorIdFromContext({
+    route,
+    engine: props.engine,
+    fallback: props.embedded ? 1 : DEFAULT_VUE_CREATOR_ID,
+  });
 }
 
 async function loadSubscriptionTierOptions() {
@@ -877,6 +885,7 @@ const createEvent = async () => {
         context: {
           stateEngine: props.engine,
           creatorId: resolveCreatorId(),
+          apiBaseUrl: props.engine.getState("apiBaseUrl") || undefined,
         },
       });
 
@@ -897,13 +906,9 @@ const createEvent = async () => {
         eventName: String(formData.value.eventTitle || "").trim() || "Untitled Event",
         eventType: props.engine.getState("eventType") || "1on1-call",
       });
-
-      await router.push({
-        path: "/dashboard/events",
-        query: {
-          refresh: "1",
-          creatorId: String(resolveCreatorId()),
-        },
+      emit("created", {
+        creatorId: resolveCreatorId(),
+        flowResult,
       });
     } finally {
       isCreating.value = false;

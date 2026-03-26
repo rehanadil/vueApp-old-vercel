@@ -1,6 +1,12 @@
 <script setup>
 import { computed, ref, watch } from "vue";
 import { computeNextAvailableSlot } from "@/services/bookings/utils/bookingSlotUtils.js";
+import {
+  bookingFlowArrowUpRightIcon,
+  bookingFlowBackgroundImage,
+  bookingFlowTokenIcon,
+  bookingFlowUnionIcon,
+} from "./oneOnOneBookingFlowAssets.js";
 
 const emit = defineEmits(["retry-catalog"]);
 
@@ -8,6 +14,10 @@ const props = defineProps({
   engine: {
     type: Object,
     required: true,
+  },
+  embedded: {
+    type: Boolean,
+    default: false,
   },
 });
 
@@ -24,6 +34,19 @@ const currentEvent = computed(() => {
   const safeIndex = Math.min(Math.max(currentIndex.value, 0), events.value.length - 1);
   return events.value[safeIndex] || null;
 });
+
+const outerClass = computed(() => (
+  props.embedded
+    ? "h-full w-full max-h-full overflow-auto scrollbar-hide p-4 md:p-6 flex items-center justify-center"
+    : "h-screen w-full max-h-full overflow-auto scrollbar-hide py-8"
+));
+
+const cardBackgroundStyle = computed(() => ({
+  backgroundImage: `linear-gradient(180deg, rgba(12, 17, 29, 0) 25%, #0C111D 100%), url('${bookingFlowBackgroundImage}')`,
+  backgroundPosition: "center",
+  backgroundSize: "cover",
+  backgroundRepeat: "no-repeat",
+}));
 
 function callTypeLabel(event = {}) {
   return event.type === "group-event" ? "Group event" : "1 on 1 call";
@@ -111,9 +134,10 @@ watch(
 </script>
 
 <template>
-  <div class="h-screen w-full max-h-full overflow-auto scrollbar-hide py-8">
+  <div :class="outerClass">
     <div
-      class="sm:w-[25rem] h-[41rem] min-h-[41rem] overflow-x-hidden overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] flex flex-col items-center justify-center rounded-3xl bg-center bg-cover bg-no-repeat bg-[linear-gradient(180deg,rgba(12,17,29,0)_25%,#0C111D_100%),url('/images/background.png')] backdrop-blur-md"
+      class="sm:w-[25rem] h-[41rem] min-h-[41rem] overflow-x-hidden overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] flex flex-col items-center justify-center rounded-3xl backdrop-blur-md"
+      :style="cardBackgroundStyle"
     >
       <div v-if="isLoading" class="h-full flex items-center justify-center rounded-3xl bg-black/15 text-white text-sm">
         Loading events...
@@ -180,7 +204,7 @@ watch(
               class="content-price flex flex-row justify-start items-end gap-[0.5rem]"
             >
               <div class="price-icon h-full flex justify-center items-center">
-                <img src="/images/token.svg" class="w-[2rem] h-[2rem]" />
+                <img :src="bookingFlowTokenIcon" class="w-[2rem] h-[2rem]" alt="" />
               </div>
               <p class="price-amount text-4xl font-semibold mb-[-3px]">{{ safeNumber(currentEvent?.basePriceTokens, 0) }}</p>
               <p class="price-currency text-2xl font-semibold mb-[-3px]">Tokens</p>
@@ -226,12 +250,13 @@ watch(
           >
             <img
               class="absolute z-[999] h-full left-0 "
-              src="/images/Union.svg"
+              :src="bookingFlowUnionIcon"
               alt=""
             />
             <img
-              src="/images/arrow-up-right.svg"
+              :src="bookingFlowArrowUpRightIcon"
               class="right-icon relative left-[10px]"
+              alt=""
             />
           </div>
         </button>
