@@ -3,8 +3,8 @@ import { normalizeUnknownError } from "../flow-system/flowErrors.js";
 
 function getFallbackBaseUrl() {
   // If Vite env isn't defined, default to local backend
-  if (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_SCYLLADB_API_URL) {
-    return import.meta.env.VITE_SCYLLADB_API_URL;
+  if (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL;
   }
   return "http://localhost:3001";
 }
