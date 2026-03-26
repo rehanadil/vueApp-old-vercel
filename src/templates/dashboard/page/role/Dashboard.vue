@@ -1,6 +1,10 @@
 <template>
   <DashboardWrapperTwoColContainer>
   
+    <NewChatPopup />
+    <br />
+    <br />
+  
     <DashboardEventStaticPopup />
     <br />
     <br />
@@ -27,6 +31,10 @@
     <ChatSection />
     <br />
     <br />
+
+    <NewMessage />
+    <br />
+    <br /> 
 
     <Cookies />
 
@@ -265,6 +273,8 @@ import ChatSection from "@/components/calendar/ChatSection.vue"
 import CallSoonChat from "@/components/calendar/CallSoonChat.vue";
 import AskForMoreTime from "@/components/calendar/AskForMoreTime.vue";
 import AskToSchedule from "@/components/calendar/AskToSchedule.vue";
+import NewChatPopup from "@/components/calendar/NewChatPopup.vue";
+import NewMessage from "@/components/calendar/NewMessage.vue";
 import EventCard from "@/components/ui/card/dashboard/EventCard.vue";
 import CheckboxGroup from "@/components/ui/form/checkbox/CheckboxGroup.vue";
 import OneOnOneBookingFlowPopup from "@/components/FanBookingFlow/OneOnOneBookingFlow/OneOnOneBookingFlowPopup.vue";
