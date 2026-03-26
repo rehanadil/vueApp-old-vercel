@@ -6,6 +6,7 @@ export const useChatStore = defineStore("chat", {
     pagingStates: {},
     userChats: [],
     chatParticipants: {},
+    chatUsersData: {},
   }),
 
   getters: {
@@ -90,11 +91,18 @@ export const useChatStore = defineStore("chat", {
       });
     },
 
+    setChatUsersDataAction({ users }) {
+      if (users && typeof users === "object") {
+        this.chatUsersData = { ...this.chatUsersData, ...users };
+      }
+    },
+
     clearCache() {
       this.messages = {};
       this.pagingStates = {};
       this.userChats = [];
       this.chatParticipants = {};
+      this.chatUsersData = {};
     },
   },
 });

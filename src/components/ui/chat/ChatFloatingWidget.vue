@@ -37,13 +37,26 @@ function closeChatWindow(chatId) {
 
 const socket = ref(null)
 
-onMounted(() => {
+onMounted(async () => {
   currentUserId.value = resolveUserId()
   if (currentUserId.value) {
     const s = useChatSocket(currentUserId.value)
     s.init()
     socket.value = s
-    FlowHandler.run('chat.fetchUserChats', { userId: currentUserId.value })
+    await FlowHandler.run('chat.fetchUserChats', { userId: currentUserId.value })
+
+    // Collect all unique participant IDs across all chats, including current user
+    const allParticipantIds = [
+      ...new Set(
+        Object.values(chatStore.chatParticipants)
+          .flat()
+          .map(Number)
+          .filter((id) => id)
+      ),
+    ]
+    if (allParticipantIds.length > 0) {
+      FlowHandler.run('chat.fetchChatUsersData', { userIds: allParticipantIds })
+    }
   }
 })
 </script>
@@ -72,6 +85,7 @@ onMounted(() => {
       <!-- Chat list panel (floats above trigger) -->
       <ChatListPanel
         v-if="isListOpen"
+        :current-user-id="currentUserId"
         @open-chat="openChatWindow"
         @close="isListOpen = false"
       />
