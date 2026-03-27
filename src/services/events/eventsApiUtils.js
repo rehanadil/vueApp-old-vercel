@@ -1,4 +1,5 @@
 import { fail } from "@/services/flow-system/flowTypes.js";
+import { resolveCreatorIdFromContext } from "@/utils/contextIds.js";
 
 const HKT_TIMEZONE = "Asia/Hong_Kong";
 const HKT_OFFSET_SUFFIX = "+08:00";
@@ -25,23 +26,13 @@ export function toNumberOr(value, fallback = null) {
 }
 
 export function resolveCreatorId(input = {}, context = {}) {
-  return 1407;
-  const candidates = [
-    input.creatorId,
-    context.creatorId,
-    context.route?.query?.creatorId,
-    context.userId,
-    typeof window !== "undefined" ? window.localStorage?.getItem("creatorId") : null,
-  ];
-
-  for (let index = 0; index < candidates.length; index += 1) {
-    const numeric = toNumberOr(candidates[index], null);
-    if (numeric != null) {
-      return numeric;
-    }
-  }
-
-  return 1;
+  return resolveCreatorIdFromContext({
+    preferredId: input.creatorId,
+    extraCandidates: [context.creatorId, context.userId],
+    route: context.route,
+    engine: context.stateEngine,
+    fallback: 1,
+  });
 }
 
 export function buildIdempotencyKey(prefix = "evt") {

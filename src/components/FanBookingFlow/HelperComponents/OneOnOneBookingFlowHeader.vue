@@ -1,4 +1,11 @@
 <script setup>
+import {
+  bookingFlowDotsIcon,
+  bookingFlowProfileImage,
+  bookingFlowTokenIcon,
+  bookingFlowVerifiedIcon,
+} from "../OneOnOneBookingFlow/oneOnOneBookingFlowAssets.js";
+
 defineProps({
   timeDisplay: {
     type: String,
@@ -25,6 +32,18 @@ defineProps({
     type: String,
     default: 'High School Life Simulator'
   },
+  creatorAvatar: {
+    type: String,
+    default: bookingFlowProfileImage,
+  },
+  creatorName: {
+    type: String,
+    default: 'Princess Carrot Pop',
+  },
+  creatorIsVerified: {
+    type: Boolean,
+    default: false,
+  },
   showApprovalNeeded: {
     type: Boolean,
     default: true
@@ -41,7 +60,7 @@ defineProps({
         </div>
         <div v-if="showApprovalNeeded" class="bg-[#0C111D] hidden lg:flex rounded-[6px] p-[0.3125rem_0.375rem] w-fit min-h-[28px] lg:flex justify-center items-center gap-2">
           <div class="w-4 h-4 flex justify-center items-center">
-            <img src="/images/dots.svg" alt="status-icon" />
+            <img :src="bookingFlowDotsIcon" alt="status-icon" />
           </div>
           <div class="text-[11px] text-[#FFED29] font-semibold leading-[18px] italic">APPROVAL NEEDED</div>
         </div>
@@ -54,17 +73,17 @@ defineProps({
             <h1 class="no-underline text-xl md:text-2xl font-semibold text-[#F2F4F7] leading-[32px]">{{ titleDisplay }}</h1>
             <div class="flex flex-row items-center gap-2">
               <div class="w-6 h-6 flex justify-center items-center">
-                <img src="/images/ex-profile.png" alt="profile-image" class="w-full h-full object-cover" style="border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%" />
+                <img :src="creatorAvatar || bookingFlowProfileImage" alt="profile-image" class="w-full h-full object-cover" style="border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%" />
               </div>
               <div class="flex flex-row items-center gap-1">
-                <p class="text-xs font-medium leading-[18px]">Princess Carrot Pop</p>
-                <div class="w-4 h-4 flex justify-center items-center">
-                  <img src="/images/verified-blue-white.svg" alt="verified-icon" />
+                <p class="text-xs font-medium leading-[18px]">{{ creatorName }}</p>
+                <div v-if="creatorIsVerified" class="w-4 h-4 flex justify-center items-center">
+                  <img :src="bookingFlowVerifiedIcon" alt="verified-icon" />
                 </div>
               </div>
             </div>
             <div v-if="showApprovalNeeded" class="bg-[#0C111D] rounded-[6px] lg:hidden p-[0.3125rem_0.375rem] w-fit min-h-[28px] flex justify-center items-center gap-2">
-              <div class="w-4 h-4 flex justify-center items-center"><img src="/images/dots.svg" alt="status-icon" /></div>
+              <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowDotsIcon" alt="status-icon" /></div>
               <div class="text-[11px] text-[#FFED29] font-semibold leading-[18px] italic">APPROVAL NEEDED</div>
             </div>
           </div>
@@ -90,7 +109,7 @@ defineProps({
               <h3 class="text-xs text-[#22CCEE] font-semibold leading-[18px]">SUBTOTAL</h3>
               <div class="flex flex-row items-center gap-0.5 text-white">
                 <div class="w-6 h-6 flex justify-center items-center" v-if="subtotal > 0">
-                  <img src="/images/token.svg" alt="price-icon" />
+                  <img :src="bookingFlowTokenIcon" alt="price-icon" />
                 </div>
                 <p class="text-lg font-semibold leading-[28px]">{{ subtotal > 0 ? (subtotalDisplay || subtotal) : '-' }}</p>
               </div>

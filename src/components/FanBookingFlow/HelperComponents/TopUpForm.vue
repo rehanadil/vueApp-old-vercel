@@ -1,4 +1,14 @@
 <script setup>
+import {
+  bookingFlowAccountVerifiedIcon,
+  bookingFlowArrowLeftIcon,
+  bookingFlowArrowRightIcon,
+  bookingFlowAtSignIcon,
+  bookingFlowChevronDownIcon,
+  bookingFlowCreditIcon,
+  bookingFlowDoubleDropdownIcon,
+  bookingFlowTokenIcon,
+} from "../OneOnOneBookingFlow/oneOnOneBookingFlowAssets.js";
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { showToast } from '@/utils/toastBus.js';
 import '@/utils/axcessGatewayFormHandler.js';
@@ -319,7 +329,7 @@ onBeforeUnmount(() => {
       @click="emit('back')"
     >
       <div class="w-4 h-4 relative overflow-hidden">
-        <img src="/images/arrow-left.svg" alt="">
+        <img :src="bookingFlowArrowLeftIcon" alt="">
       </div>
       <div class="justify-start text-white text-xs font-medium font-['Poppins'] leading-4">
         Back
@@ -336,7 +346,7 @@ onBeforeUnmount(() => {
         <div class="flex flex-col gap-3">
           <div class="inline-flex justify-start items-center gap-1">
             <div class="relative">
-              <img class="w-10 h-10" src="/images/token.svg" alt="">
+              <img class="w-10 h-10" :src="bookingFlowTokenIcon" alt="">
             </div>
             <div class="flex-1 h-11 px-1 border-b border-gray-400 inline-flex flex-col justify-center items-start gap-2">
               <div class="h-11 inline-flex w-full justify-between items-center gap-1">
@@ -409,7 +419,7 @@ onBeforeUnmount(() => {
         <div class="inline-flex justify-between w-full">
           <div class="justify-start text-white text-sm font-normal font-['Poppins'] leading-5">Original balance</div>
           <div class="flex justify-start items-center gap-1">
-            <div class="w-4 h-4 relative"><img src="/images/token.svg" alt=""></div>
+            <div class="w-4 h-4 relative"><img :src="bookingFlowTokenIcon" alt=""></div>
             <div class="justify-start text-white text-sm font-medium font-['Poppins'] leading-5">{{ walletBalance.toLocaleString() }}</div>
           </div>
         </div>
@@ -418,7 +428,7 @@ onBeforeUnmount(() => {
           <div class="justify-start text-white text-sm font-normal font-['Poppins'] leading-5">Top up amount</div>
           <div class="flex justify-start items-center gap-1">
             <div class="justify-start text-white text-sm font-medium font-['Poppins'] leading-5">+</div>
-            <div class="w-4 h-4 relative"><img src="/images/token.svg" alt=""></div>
+            <div class="w-4 h-4 relative"><img :src="bookingFlowTokenIcon" alt=""></div>
             <div class="justify-start text-white text-sm font-medium font-['Poppins'] leading-5">{{ selectedAmount.toLocaleString() }}</div>
           </div>
         </div>
@@ -428,7 +438,7 @@ onBeforeUnmount(() => {
         <div class="inline-flex justify-between w-full">
           <div class="justify-start text-white text-sm font-normal font-['Poppins'] leading-5">Balance after top up</div>
           <div class="flex justify-start items-center gap-1">
-            <div class="w-4 h-4 relative"><img src="/images/token.svg" alt=""></div>
+            <div class="w-4 h-4 relative"><img :src="bookingFlowTokenIcon" alt=""></div>
             <div class="justify-start text-white text-lg font-semibold font-['Poppins'] leading-7">{{ balanceAfterTopUp.toLocaleString() }}</div>
           </div>
         </div>
@@ -437,7 +447,7 @@ onBeforeUnmount(() => {
           <div class="justify-start text-white text-sm font-normal font-['Poppins'] leading-5">Subtotal</div>
           <div class="flex justify-start items-center gap-1">
             <div class="justify-start text-white text-sm font-medium font-['Poppins'] leading-5">-</div>
-            <div class="w-4 h-4 relative"><img src="/images/token.svg" alt=""></div>
+            <div class="w-4 h-4 relative"><img :src="bookingFlowTokenIcon" alt=""></div>
             <div class="justify-start text-white text-sm font-medium font-['Poppins'] leading-5">{{ totalPrice }}</div>
           </div>
         </div>
@@ -447,7 +457,7 @@ onBeforeUnmount(() => {
         <div class="inline-flex justify-between w-full">
           <div class="justify-start text-white text-sm font-semibold font-['Poppins'] leading-5">Balance after booking</div>
           <div class="flex justify-start items-center gap-1">
-            <div class="w-4 h-4 relative"><img src="/images/token.svg" alt=""></div>
+            <div class="w-4 h-4 relative"><img :src="bookingFlowTokenIcon" alt=""></div>
             <div class="justify-start text-white text-lg font-semibold font-['Poppins'] leading-7">{{ balanceAfterBooking.toLocaleString() }}</div>
           </div>
         </div>
@@ -473,8 +483,7 @@ onBeforeUnmount(() => {
                     <p class="text-sm font-normal text-white">Original balance</p>
                   </div>
                   <div class="flex justify-center items-center gap-1">
-                    <div class="w-4 h-4 flex justify-center items-center"><img src="/images/token.svg"
-                        alt="token-icon" /></div>
+                    <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
                     <p class="text-sm font-medium text-white">{{ walletBalance.toLocaleString() }}</p>
                   </div>
                 </div>
@@ -484,8 +493,7 @@ onBeforeUnmount(() => {
                   </div>
                   <div class="flex justify-center items-center gap-1">
                     <span class="text-sm font-medium text-white">+</span>
-                    <div class="w-4 h-4 flex justify-center items-center"><img src="/images/token.svg"
-                        alt="token-icon" /></div>
+                    <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
                     <p class="text-sm font-medium text-white">{{ selectedAmount.toLocaleString() }}</p>
                   </div>
                 </div>
@@ -495,8 +503,7 @@ onBeforeUnmount(() => {
                     <p class="text-sm font-normal text-white">Balance after top up</p>
                   </div>
                   <div class="flex justify-center items-center gap-1">
-                    <div class="w-4 h-4 flex justify-center items-center"><img src="/images/token.svg"
-                        alt="token-icon" /></div>
+                    <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
                     <p class="text-sm font-medium text-white">{{ (walletBalance + selectedAmount).toLocaleString() }}</p>
                   </div>
                 </div>
@@ -506,8 +513,7 @@ onBeforeUnmount(() => {
                   </div>
                   <div class="flex justify-center items-center gap-1">
                     <span class="text-sm font-medium text-white">-</span>
-                    <div class="w-4 h-4 flex justify-center items-center"><img src="/images/token.svg"
-                        alt="token-icon" /></div>
+                    <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
                     <p class="text-sm font-medium text-white">{{ totalPrice }}</p>
                   </div>
                 </div>
@@ -517,8 +523,7 @@ onBeforeUnmount(() => {
                     <p class="text-sm font-semibold text-white">Balance after booking</p>
                   </div>
                   <div class="flex justify-center items-center gap-1">
-                    <div class="w-4 h-4 flex justify-center items-center"><img src="/images/token.svg"
-                        alt="token-icon" /></div>
+                    <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
                     <p class="text-sm font-semibold text-white">{{ remainingBalance.toLocaleString() }}</p>
                   </div>
                 </div>
@@ -536,8 +541,7 @@ onBeforeUnmount(() => {
                   <p class="text-xl font-semibold leading-[30px] text-white">Amount Due Today</p>
                   <div class="flex flex-col">
                     <div class="flex justify-end items-center gap-0.5">
-                      <div class="w-4 h-4 flex justify-center items-center"><img src="/images/token.svg"
-                          alt="token-icon" /></div>
+                      <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
                       <p class="text-xl font-semibold">{{ selectedAmount.toLocaleString() }}</p>
                     </div>
                     <span class="text-xs font-medium text-[#98A2B3] whitespace-nowrap">=USD$ {{ topUpUSD }}</span>
@@ -561,11 +565,9 @@ onBeforeUnmount(() => {
           <div class="relative h-full px-4 lg:rounded-br-[20px] flex justify-center items-center gap-2 after:content-[''] after:absolute after:right-full after:top-0 after:w-0 after:h-16 after:border-t-[4rem] after:border-t-transparent after:border-b-0 bg-[#07F468] after:border-r-[1rem] after:border-r-[#07F468]"
           :class="canSubmit ? 'bg-[#07F468] text-black cursor-pointer' : 'bg-[#6c7280] text-black/60 cursor-not-allowed after:border-r-[#6c7280]'">
             <span class="whitespace-nowrap text-xl font-medium text-[#0C111D]">{{ isProcessing ? 'PROCESSING...' : isFormLoading ? 'LOADING FORM...' : 'TOP UP & COMPLETE BOOKING' }}</span>
-            <img src="/images/arrow-right.svg" alt="" class="w-4 h-4" />
+            <img :src="bookingFlowArrowRightIcon" alt="" class="w-4 h-4" />
           </div>
           </button>
        </div>
   </div>
-  
-
 </template>

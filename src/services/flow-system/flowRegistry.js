@@ -20,6 +20,8 @@ import {
 } from "@/services/events/validators/eventFlowValidators.js";
 import { fetchCreatorBookingContextFlow } from "@/services/bookings/flows/fetchCreatorBookingContextFlow.js";
 import { mapFetchCreatorBookingContextFromResponse } from "@/services/bookings/mappers/fetchCreatorBookingContextMapper.js";
+import { fetchDashboardBookingContextFlow } from "@/services/bookings/flows/fetchDashboardBookingContextFlow.js";
+import { mapFetchDashboardBookingContextFromResponse } from "@/services/bookings/mappers/fetchDashboardBookingContextMapper.js";
 import { createBookingFlow } from "@/services/bookings/flows/createBookingFlow.js";
 import { mapCreateBookingToRequest } from "@/services/bookings/mappers/createBookingMapper.js";
 import { createTemporaryHoldFlow } from "@/services/bookings/flows/createTemporaryHoldFlow.js";
@@ -199,6 +201,60 @@ export const flowRegistry = {
         MISSING_CREATOR_ID: "Creator id is required before loading booking context.",
         FETCH_CREATOR_EVENTS_FAILED: "Could not load events right now.",
         FETCH_CREATOR_BOOKED_SLOTS_FAILED: "Could not load booked slots right now.",
+      },
+    },
+  },
+  "bookings.fetchDashboardBookingContext": {
+    flowKind: "read",
+    flow: fetchDashboardBookingContextFlow,
+    mapper: { fromResponse: mapFetchDashboardBookingContextFromResponse },
+    pipeline: {
+      timeouts: { requestMs: 12000, totalFlowMs: 22000 },
+      retry: { enabled: true, maxAttempts: 2, baseDelayMs: 250, maxDelayMs: 2000, jitterRatio: 0.15 },
+      etag: { enabled: true, varyByPayload: true },
+      localCache: { enabled: true, ttlMs: 30000, version: 1, varyByPayload: true },
+      readFrom: {
+        enabled: true,
+        ttlMs: 30000,
+        mode: "staleWhileRevalidate",
+        priority: ["stateEngine", "local"],
+        sources: [
+          {
+            type: "stateEngine",
+            key: "events.cachedResponse",
+            etagKey: "events.meta.etag",
+            updatedAtKey: "events.meta.updatedAt",
+          },
+          {
+            type: "local",
+            key: "dashboard-events:context",
+            ttlMs: 30000,
+            version: 1,
+            etagKey: "meta.etag",
+            updatedAtKey: "meta.updatedAt",
+          },
+        ],
+      },
+      concurrency: { policy: "latestWins", dedupe: true, keyByPayload: true },
+      destinations: [
+        { type: "stateEngine", key: "events.cachedResponse", mode: "set", hydrateOnReadHit: true },
+        { type: "stateEngine", key: "events.catalogEvents", mode: "set", select: "events", hydrateOnReadHit: true },
+        { type: "stateEngine", key: "events.rawEvents", mode: "set", select: "rawEvents", hydrateOnReadHit: true },
+        { type: "stateEngine", key: "events.bookedSlotsRaw", mode: "set", select: "bookedSlots", hydrateOnReadHit: true },
+        { type: "stateEngine", key: "events.bookedSlotsIndex", mode: "set", select: "bookedSlotsIndex", hydrateOnReadHit: true },
+        { type: "stateEngine", key: "events.meta", mode: "set", select: "meta", hydrateOnReadHit: true },
+        { type: "stateEngine", key: "events.meta", mode: "merge", value: { updatedAt: "@now" }, hydrateOnReadHit: true },
+        { type: "local", key: "dashboard-events:context", ttlMs: 30000, version: 1, hydrateOnReadHit: true },
+      ],
+      onNotModified: [
+        { type: "stateEngine", key: "events.meta", mode: "merge", value: { checkedAt: "@now" } },
+      ],
+      uiErrorMap: {
+        MISSING_CREATOR_ID: "Creator id is required before loading dashboard events.",
+        MISSING_FAN_ID: "Fan id is required before loading dashboard events.",
+        UNSUPPORTED_DASHBOARD_USER_ROLE: "Unsupported user role for dashboard events.",
+        FETCH_DASHBOARD_EVENTS_FAILED: "Could not load events right now.",
+        FETCH_DASHBOARD_BOOKED_SLOTS_FAILED: "Could not load booked slots right now.",
       },
     },
   },

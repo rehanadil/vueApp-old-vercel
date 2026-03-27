@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import CheckboxGroup from '../ui/form/checkbox/CheckboxGroup.vue';
+import editIcon from '@/assets/images/icons/edit.webp';
 
 const EVENT_TYPE_COLOR_STORAGE_KEY = 'calendar:eventTypeColors';
 const DEFAULT_TYPE_COLORS = Object.freeze({
@@ -152,7 +153,7 @@ onBeforeUnmount(() => {
         </div>
         <div class="w-5 h-5 relative overflow-visible">
           <button type="button" class="w-5 h-5 relative overflow-hidden" @click.stop="toggleColorPicker('video')">
-            <img src="/images/edit.png" alt="editIcon" />
+            <img :src="editIcon" alt="editIcon" />
           </button>
           <div
             v-if="openColorPickerFor === 'video'"
@@ -187,7 +188,7 @@ onBeforeUnmount(() => {
         </div>
         <div class="w-5 h-5 relative overflow-visible">
           <button type="button" class="w-5 h-5 relative overflow-hidden" @click.stop="toggleColorPicker('audio')">
-            <img src="/images/edit.png" alt="editIcon" />
+            <img :src="editIcon" alt="editIcon" />
           </button>
           <div
             v-if="openColorPickerFor === 'audio'"
@@ -220,7 +221,7 @@ onBeforeUnmount(() => {
           <div class="w-2 h-2 rounded-full" :style="{ backgroundColor: filters.colorByType.groupCall }" />
         </div>
         <div class="w-5 h-5 relative overflow-hidden">
-                    <img src="/images/edit.png" alt="editIcon" />
+            <img :src="editIcon" alt="editIcon" />
         </div>
       </div>
     </div>

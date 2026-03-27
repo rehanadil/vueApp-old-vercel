@@ -19,7 +19,7 @@
                         fans
                         schedule one on one time with you via video or audio call.</div>
                 </div>
-                <img class="w-20 h-20" src="/images/cartoonfeet.png" />
+                <img class="w-20 h-20" :src="cartoonFeetIcon" alt="" />
             </div>
         </div>
         <div class="opacity-25 pointer-events-none inline-flex items-center cursor-pointer hover:bg-gray-50/50 transition-colors" @click="onCreateGroup">
@@ -45,6 +45,8 @@
 </template>
 
 <script setup>
+import cartoonFeetIcon from "@/assets/images/icons/cartoonfeet.webp";
+
 const emit = defineEmits(["create-private", "create-group"]);
 
 const onCreatePrivate = () => {

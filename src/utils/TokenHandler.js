@@ -1,5 +1,6 @@
 const TOKEN_HANDLER_API_URL = "https://sy9ci2wju3.execute-api.ap-northeast-1.amazonaws.com/dev-tokens-handler-lambda";
 const TOKEN_HANDLER_TOKEN = "7da80697cf54a3a12e6fa4dd8162d3011749723e414b5b9c688d71c3582e43a1";
+import { logFanBookingDebug } from "@/embeds/fanBooking/debug.js";
 
 class TokenHandler {
     static apiUrl = TOKEN_HANDLER_API_URL;
@@ -21,6 +22,11 @@ class TokenHandler {
     static async get({ userId, receiverId = null, defaultValue = null } = {}) {
         // API URL
         const url = this.apiUrl + "/balance/" + userId;
+        logFanBookingDebug("token-handler", "get:start", {
+            userId,
+            receiverId,
+            url,
+        });
 
         try {
             const response = await fetch(url, {
@@ -28,11 +34,18 @@ class TokenHandler {
                 headers: this.getAuthHeaders(),
             });
 
+            logFanBookingDebug("token-handler", "get:http-response", {
+                ok: response.ok,
+                status: response.status,
+                url,
+            });
+
             if (!response.ok) {
                 throw new Error('Network response was not ok');
             }
 
             const res = await response.json();
+            logFanBookingDebug("token-handler", "get:json", res);
 
             if (!res.ok) {
                 throw new Error('API response was not ok');
@@ -49,13 +62,25 @@ class TokenHandler {
                 const systemTokens = Number(beneficiaryMap?.system || 0);
 
                 const totalTokens = paidTokens + freeTokens + systemTokens;
+                logFanBookingDebug("token-handler", "get:beneficiary-total", {
+                    totalTokens,
+                    paidTokens,
+                    freeTokens,
+                    systemTokens,
+                });
                 return totalTokens;
             }
 
+            logFanBookingDebug("token-handler", "get:success", res);
             return res;
         }
         catch (error) {
             console.error('There has been a problem with your fetch operation:', error);
+            logFanBookingDebug("token-handler", "get:error", {
+                message: error?.message || String(error),
+                name: error?.name || null,
+                url,
+            });
             return defaultValue;
         }
     }
