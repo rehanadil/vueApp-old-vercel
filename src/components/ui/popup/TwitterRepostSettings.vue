@@ -1,29 +1,32 @@
 <template>
     <div class="w-screen h-screen md:w-[493px] md:h-auto overflow-y-auto p-2 md:p-4 pb-16 md:pb-4 bg-white/90 md:rounded-[10px] inline-flex flex-col justify-start items-start gap-4 relative">
   <div class="self-stretch bg-white/5 backdrop-blur-[5px] inline-flex justify-between items-start">
-    <div class="justify-start text-slate-700 text-base font-medium font-['Poppins'] leading-6">X Repost Settings</div>
+    <div class="justify-start text-slate-700 text-base font-medium font-['Poppins'] leading-6">{{ title }}</div>
     <div class="relative">
       <img src="https://i.ibb.co/G4Y3BB6c/Icon.png" alt="x-close" class="w-3 h-3 cursor-pointer" data-popup-close>
     </div>
   </div>
   <div class="self-stretch py-2 flex flex-col justify-center items-start gap-6">
     <div class="self-stretch inline-flex justify-start items-start gap-2">
-      <CheckboxSwitch  label="Post to X when my booking schedule is live" />
+      <CheckboxSwitch v-model="checkboxModel" :label="checkboxLabel" version="dashboard" wrapper-label="Dark Mode" />
+      <input type="hidden" :name="inputName" :value="checkboxModel ? '1' : '0'" />
     </div>
   </div>
   <div class="self-stretch flex flex-col justify-start items-start gap-6">
-
-    <div class="self-stretch hidden flex-col justify-start items-start gap-1.5">
+    <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
         <div class="self-stretch justify-start text-gray-900 text-sm font-semibold font-['Poppins'] leading-5">Post Message (Leave blank to use system default message.)</div>
+        <input type="hidden" :name="textareaName" :value="localMessage" />
         <div class="self-stretch h-24 flex flex-col justify-start items-start gap-1.5">
             <div class="self-stretch flex-1 flex flex-col justify-start items-start gap-1.5">
-            <div class="self-stretch flex-1 px-3.5 py-2.5 bg-white/30 rounded-tl-xs rounded-tr-xs shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 inline-flex justify-start items-start gap-2">
-                <div class="flex-1 self-stretch flex justify-start items-center gap-2">
-                <div class="flex-1 self-stretch justify-start text-gray-500 text-base font-normal font-['Poppins'] leading-6">My event ‘High school life simulator’ is now open for booking! </div>
-                </div>
+              <textarea
+                ref="messageTextareaRef"
+                v-model="localMessage"
+                rows="3"
+                class="self-stretch flex-1 px-3.5 py-2.5 bg-white/30 rounded-tl-xs rounded-tr-xs shadow-[0px_1px_2px_0_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none resize-none text-gray-700 text-sm"
+                placeholder="Write your X repost message..."
+              />
             </div>
-            </div>
-            <div class="self-stretch justify-start text-slate-600 text-sm font-normal font-['Poppins'] leading-5">66/72 characters</div>
+            <div class="self-stretch justify-start text-slate-600 text-sm font-normal font-['Poppins'] leading-5">{{ localMessage.length }} characters</div>
         </div>
     </div>
     
@@ -51,10 +54,10 @@
             </div>
             <div class="self-stretch min-h-10 p-1 relative bg-blue-50 rounded-xs outline outline-1 outline-offset-[-0.50px] outline-blue-600 inline-flex justify-center items-center gap-2.5">
               <div class="flex-1 inline-flex flex-col justify-start items-center gap-2.5">
-                <div class="self-stretch justify-start text-black text-base font-normal   leading-7">I have a new event ‘Let 3 queens hi you at the same time’ coming up! limited seats available! join now! <br/> <br/>Website.app/model/jellyskitchen/media/198386476</div>
+                <div class="self-stretch justify-start text-black text-base font-normal leading-7 whitespace-pre-line">{{ previewMessage }}</div>
               </div>
               <div class="w-20 pb-6 right-0 top-[-25px] absolute inline-flex flex-col justify-start items-start gap-2.5">
-                <div class="self-stretch min-w-14 px-2 py-1 bg-blue-600 inline-flex justify-center items-center gap-2 cursor-pointer">
+                <div class="self-stretch min-w-14 px-2 py-1 bg-blue-600 inline-flex justify-center items-center gap-2 cursor-pointer" @click="handleEditMessage">
                   <div  class="relative">
                     <img :src="EditPencilIcon" alt="edit-pencil" class="w-4 h-4">
                   </div>
@@ -64,9 +67,29 @@
             </div>
           </div>
           <div class="self-stretch min-h-10 p-1 relative bg-blue-50 rounded-xs outline outline-1 outline-offset-[-0.50px] outline-blue-600 inline-flex justify-center items-center gap-2.5">
-             <div class="w-full">
-              <!-- Uploaded image preview with delete button -->
+            <div class="w-full" :data-uploader-name="uploaderName">
+              <!-- Uploaded image preview with remove button -->
+              <div v-if="localMedia" class="relative mb-2">
+                <img
+                  :src="localMedia"
+                  alt="X post image preview"
+                  class="w-full rounded-xl object-cover max-h-40"
+                />
+                <button
+                  type="button"
+                  class="absolute top-2 right-2 w-7 h-7 rounded-full bg-red-500 hover:bg-red-700 flex items-center justify-center transition-colors"
+                  aria-label="Remove image"
+                  @click="localMedia = ''"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none">
+                    <path d="M18 6L6 18M6 6l12 12" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+              <!-- Uploader shown only when no image uploaded yet -->
               <ThumbnailUploaderNay
+                v-if="!localMedia"
+                :input-name="uploaderName"
                 custom-class="cursor-pointer border-2 border-transparent bg-black/5 rounded-xl p-4 h-[7.875rem] flex flex-col items-center justify-center hover:border-gray-900 hover:bg-black/10"
                 input-wrapper-class="border-2 border-dashed border-transparent !gap-1"
                 button-wrapper-class="shadow-[0_1px_2px_0_rgba(16,24,40,0.05)] rounded-lg h-10 w-10 relative flex justify-center items-center"
@@ -80,15 +103,17 @@
                 custom-max-size="800x400px"
                 eenable-image-compression="true"
                 format-text-class="text-gray-500 text-xs leading-[1.125rem] text-center mb-0"
+                @media-urls-updated="handleMediaUrlsUpdated"
               />
             </div>
-            <div class="size- pb-6 right-0 top-[-25px] absolute inline-flex flex-col justify-start items-start">
+            <!-- Upload button shown only when no image uploaded yet -->
+            <div v-if="!localMedia" class="size- pb-6 right-0 top-[-25px] absolute inline-flex flex-col justify-start items-start">
               <div class="self-stretch min-w-14 px-2 py-1 bg-blue-600 inline-flex justify-center items-center gap-2 cursor-pointer">
-                <div  class="relative">
+                <div class="relative">
                   <img src="https://fansocial.app/wp-content/plugins/fansocial/assets/icons/svg/upload-cloud-02.svg" class="w-4 h-4 invert"/>
                 </div>
                 <div class="text-center justify-start text-white text-xs font-semibold font-['Poppins'] capitalize tracking-tight">Upload thumbnail</div>
-                <div >
+                <div>
                   <img :src="ChevronDownFill"/>
                 </div>
               </div>
@@ -99,7 +124,7 @@
     </div>
   </div>
   <div class="self-stretch flex fixed md:relative left-0 px-2 md:px-0 bottom-2 w-full md:w-auto">
-    <div class="self-stretch h-10 min-w-24 px-6 py-2 bg-[#07F468] inline-flex justify-center items-center gap-2.5 cursor-pointer w-full" data-popup-close>
+    <div class="self-stretch h-10 min-w-24 px-6 py-2 bg-[#07F468] inline-flex justify-center items-center gap-2.5 cursor-pointer w-full" data-popup-close @click="handleSave">
       <div class="justify-start text-gray-900 text-base font-medium font-['Poppins'] leading-6">SAVE</div>
     </div>
   </div>
@@ -107,6 +132,7 @@
 </template>
 
 <script setup>
+import { computed, nextTick, ref, watch } from "vue";
 
 import CheckboxSwitch from "@/components/dev/checkbox/CheckboxSwitch.vue";
 import VerifiedTickIcon from "@/assets/images/icons/verified-blue-white.webp" 
@@ -114,4 +140,106 @@ import AiArtIcon from "@/assets/images/icons/ai-art.webp"
 import ChevronDownFill from "@/assets/images/icons/chevron-down-fill.webp"
 import EditPencilIcon from "@/assets/images/icons/edit-pencil.webp"
 import ThumbnailUploaderNay from "@/components/ui/global/media/uploader/HelperComponents/ThumbnailUploaderNay.vue"
+
+const props = defineProps({
+  title: {
+    type: String,
+    default: "X Repost Settings"
+  },
+  checkboxLabel: {
+    type: String,
+    default: "Post to X"
+  },
+  modelValue: {
+    type: Boolean,
+    default: false
+  },
+  messageValue: {
+    type: String,
+    default: ""
+  },
+  mediaValue: {
+    type: String,
+    default: ""
+  },
+  inputName: {
+    type: String,
+    default: ""
+  },
+  textareaName: {
+    type: String,
+    default: ""
+  },
+  uploaderName: {
+    type: String,
+    default: ""
+  }
+});
+
+const emit = defineEmits(["update:modelValue", "update:messageValue", "update:mediaValue", "save"]);
+
+const localMessage = ref(String(props.messageValue || ""));
+const localMedia = ref(String(props.mediaValue || ""));
+const messageTextareaRef = ref(null);
+
+const DEFAULT_PREVIEW_MESSAGE = "I have a new event coming up. Limited seats available. Join now!";
+
+const previewMessage = computed(() => {
+  const message = String(localMessage.value || "").trim();
+  return message || DEFAULT_PREVIEW_MESSAGE;
+});
+
+const checkboxModel = computed({
+  get() {
+    return props.modelValue;
+  },
+  set(value) {
+    emit("update:modelValue", Boolean(value));
+  },
+});
+
+watch(() => props.messageValue, (value) => {
+  localMessage.value = String(value || "");
+});
+
+watch(() => props.mediaValue, (value) => {
+  localMedia.value = String(value || "");
+});
+
+function handleMediaUrlsUpdated(mediaUrls) {
+  if (Array.isArray(mediaUrls) && mediaUrls.length > 0) {
+    localMedia.value = String(mediaUrls[0] || "");
+    return;
+  }
+  if (typeof mediaUrls === "string") {
+    localMedia.value = mediaUrls;
+    return;
+  }
+  localMedia.value = "";
+}
+
+function handleEditMessage() {
+  nextTick(() => {
+    const textarea = messageTextareaRef.value;
+    if (!textarea || typeof textarea.focus !== "function") {
+      return;
+    }
+
+    textarea.focus();
+    if (typeof textarea.setSelectionRange === "function") {
+      const textLength = String(localMessage.value || "").length;
+      textarea.setSelectionRange(textLength, textLength);
+    }
+  });
+}
+
+function handleSave() {
+  emit("update:messageValue", String(localMessage.value || ""));
+  emit("update:mediaValue", String(localMedia.value || ""));
+  emit("save", {
+    enabled: Boolean(props.modelValue),
+    message: String(localMessage.value || ""),
+    mediaUrl: String(localMedia.value || ""),
+  });
+}
 </script>

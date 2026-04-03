@@ -47,7 +47,7 @@ const props = defineProps({
 const emit = defineEmits(["created"]);
 const route = useRoute();
 const isCreating = ref(false);
-const DEFAULT_VUE_CREATOR_ID = 1407;
+const DEFAULT_VUE_CREATOR_ID = 1407; // We can change creator id here(432 for maia).
 
 function normalizeSelectionArray(value) {
   if (Array.isArray(value)) {
@@ -135,6 +135,21 @@ const formData = ref({
   xPostInSession: props.engine.state.xPostInSession || false,
   xPostTipped: props.engine.state.xPostTipped || false,
   xPostPurchase: props.engine.state.xPostPurchase || false,
+  on_schedule_live: props.engine.state.on_schedule_live ?? props.engine.state.xPostLive ?? false,
+  on_booking_received: props.engine.state.on_booking_received ?? props.engine.state.xPostBooked ?? false,
+  on_in_session: props.engine.state.on_in_session ?? props.engine.state.xPostInSession ?? false,
+  on_tipped_session: props.engine.state.on_tipped_session ?? props.engine.state.xPostTipped ?? false,
+  on_purchased: props.engine.state.on_purchased ?? props.engine.state.xPostPurchase ?? false,
+  on_schedule_live_message: props.engine.state.on_schedule_live_message || "",
+  on_booking_received_message: props.engine.state.on_booking_received_message || "",
+  on_in_session_message: props.engine.state.on_in_session_message || "",
+  on_tipped_session_message: props.engine.state.on_tipped_session_message || "",
+  on_purchased_message: props.engine.state.on_purchased_message || "",
+  on_schedule_live_media_url: props.engine.state.on_schedule_live_media_url || "",
+  on_booking_received_media_url: props.engine.state.on_booking_received_media_url || "",
+  on_in_session_media_url: props.engine.state.on_in_session_media_url || "",
+  on_tipped_session_media_url: props.engine.state.on_tipped_session_media_url || "",
+  on_purchased_media_url: props.engine.state.on_purchased_media_url || "",
 });
 
 watch(formData, (newVal) => {
@@ -349,6 +364,16 @@ const spendingRequirementErrorByType = computed(() => ({
 }));
 
 const xRepostPopupOpen = ref(false);
+const xRepostPopupState = ref({
+  title: "X Repost Settings",
+  checkboxLabel: "Post to X",
+  checkboxField: null,
+  messageField: "",
+  mediaField: "",
+  inputName: "",
+  textareaName: "",
+  uploaderName: "",
+});
 const xRepostPopupConfig = {
   actionType: 'popup',
   width: { default: '493px' },
@@ -358,6 +383,79 @@ const xRepostPopupConfig = {
   customEffect: 'scale',
   speed: '200ms',
 };
+
+const xRepostPopupCheckboxModel = computed({
+  get() {
+    const field = xRepostPopupState.value.checkboxField;
+    if (!field) return false;
+    return Boolean(formData.value[field]);
+  },
+  set(value) {
+    const field = xRepostPopupState.value.checkboxField;
+    if (!field) return;
+    formData.value[field] = Boolean(value);
+  },
+});
+
+const xRepostPopupMessageModel = computed({
+  get() {
+    const field = xRepostPopupState.value.messageField;
+    if (!field) return "";
+    return String(formData.value[field] || "");
+  },
+  set(value) {
+    const field = xRepostPopupState.value.messageField;
+    if (!field) return;
+    formData.value[field] = String(value || "");
+  },
+});
+
+const xRepostPopupMediaModel = computed({
+  get() {
+    const field = xRepostPopupState.value.mediaField;
+    if (!field) return "";
+    return String(formData.value[field] || "");
+  },
+  set(value) {
+    const field = xRepostPopupState.value.mediaField;
+    if (!field) return;
+    formData.value[field] = String(value || "");
+  },
+});
+
+function openXRepostPopup(config = {}) {
+  xRepostPopupState.value = {
+    title: String(config.title || "X Repost Settings"),
+    checkboxLabel: String(config.checkboxLabel || "Post to X"),
+    checkboxField: config.checkboxField || null,
+    messageField: String(config.textareaName || ""),
+    mediaField: String(config.uploaderName || ""),
+    inputName: String(config.inputName || ""),
+    textareaName: String(config.textareaName || ""),
+    uploaderName: String(config.uploaderName || ""),
+  };
+  xRepostPopupOpen.value = true;
+}
+
+watch(() => formData.value.xPostLive, (value) => {
+  formData.value.on_schedule_live = Boolean(value);
+}, { immediate: true });
+
+watch(() => formData.value.xPostBooked, (value) => {
+  formData.value.on_booking_received = Boolean(value);
+}, { immediate: true });
+
+watch(() => formData.value.xPostInSession, (value) => {
+  formData.value.on_in_session = Boolean(value);
+}, { immediate: true });
+
+watch(() => formData.value.xPostTipped, (value) => {
+  formData.value.on_tipped_session = Boolean(value);
+}, { immediate: true });
+
+watch(() => formData.value.xPostPurchase, (value) => {
+  formData.value.on_purchased = Boolean(value);
+}, { immediate: true });
 
 // Accordion State for Step 2 Sections
 const sectionsState = ref({
@@ -854,34 +952,90 @@ function formatValidationErrors(errors = []) {
   });
 }
 
-function notifyEventCreated({ creatorId, eventName, eventType }) {
+async function notifyEventCreated({ creatorId, eventName, eventType, eventId }) {
+  console.error("Event created:", { creatorId, eventName, eventType, eventId });
   const payload = {
     creator_id: creatorId,
     event_name: eventName,
     event_type: eventType,
     action: "created",
+    event_id: String(eventId || props.engine.getState("eventId") || ""),
+    booking_name: eventName,
+    profile_url: String(props.engine.state.profile_url || props.engine.state.profileUrl || ""),
+    on_schedule_live: Boolean(formData.value.on_schedule_live ?? formData.value.xPostLive),
+    on_booking_received: Boolean(formData.value.on_booking_received ?? formData.value.xPostBooked),
+    on_in_session: Boolean(formData.value.on_in_session ?? formData.value.xPostInSession),
+    on_tipped_session: Boolean(formData.value.on_tipped_session ?? formData.value.xPostTipped),
+    on_purchased: Boolean(formData.value.on_purchased ?? formData.value.xPostPurchase),
+    on_schedule_live_message: String(formData.value.on_schedule_live_message || ""),
+    on_booking_received_message: String(formData.value.on_booking_received_message || ""),
+    on_in_session_message: String(formData.value.on_in_session_message || ""),
+    on_tipped_session_message: String(formData.value.on_tipped_session_message || ""),
+    on_purchased_message: String(formData.value.on_purchased_message || ""),
+    on_schedule_live_media_url: String(formData.value.on_schedule_live_media_url || ""),
+    on_booking_received_media_url: String(formData.value.on_booking_received_media_url || ""),
+    on_in_session_media_url: String(formData.value.on_in_session_media_url || ""),
+    on_tipped_session_media_url: String(formData.value.on_tipped_session_media_url || ""),
+    on_purchased_media_url: String(formData.value.on_purchased_media_url || ""),
   };
 
   const endpoint = import.meta.env.VITE_WEB_BASE_URL + "/wp-json/api/event/create";
-
+  console.error("Sending event creation notification to:", endpoint, "with payload:", payload);
   try {
     if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
       const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
       const beaconQueued = navigator.sendBeacon(endpoint, blob);
-      if (beaconQueued) return;
+      if (beaconQueued) {
+        return {
+          ok: true,
+          transport: "beacon",
+          confirmed: false,
+          message: "Notification queued via sendBeacon.",
+        };
+      }
     }
   } catch (error) {
     // Fire-and-forget endpoint; ignore transport errors.
   }
 
-  fetch(endpoint, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-    keepalive: true,
-  }).catch(() => {
-    // Fire-and-forget endpoint; ignore transport errors.
-  });
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      keepalive: true,
+    });
+
+    let responseBody = null;
+    try {
+      responseBody = await response.json();
+    } catch (_) {
+      responseBody = null;
+    }
+
+    if (!response.ok) {
+      return {
+        ok: false,
+        transport: "fetch",
+        status: response.status,
+        body: responseBody,
+      };
+    }
+
+    return {
+      ok: true,
+      transport: "fetch",
+      confirmed: true,
+      status: response.status,
+      body: responseBody,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      transport: "fetch",
+      error: error?.message || "Network error",
+    };
+  }
 }
 
 const createEvent = async () => {
@@ -915,11 +1069,18 @@ const createEvent = async () => {
         return;
       }
 
-      notifyEventCreated({
+      const notifyResult = await notifyEventCreated({
         creatorId: resolveCreatorId(),
         eventName: String(formData.value.eventTitle || "").trim() || "Untitled Event",
         eventType: props.engine.getState("eventType") || "1on1-call",
+        eventId: flowResult?.data?.eventId || flowResult?.data?.item?.eventId || "",
       });
+
+      if (!notifyResult?.ok) {
+        console.error("Event create notification failed", notifyResult);
+      } else {
+        console.info("Event create notification status", notifyResult);
+      }
       emit("created", {
         creatorId: resolveCreatorId(),
         flowResult,
@@ -1453,7 +1614,17 @@ const createEvent = async () => {
         <div class="inline-flex gap-2 justify-between">
           <CheckboxSwitch v-model="formData.xPostLive" label="Post to X when my booking schedule is live"
             version="dashboard" wrapper-label="Dark Mode" />
-          <div class="flex justify-end cursor-pointer" @click="xRepostPopupOpen = true">
+          <div
+            class="flex justify-end cursor-pointer"
+            @click="openXRepostPopup({
+              title: 'X Repost Settings',
+              checkboxLabel: 'Post to X when my booking schedule is live',
+              checkboxField: 'xPostLive',
+              inputName: 'on_schedule_live',
+              textareaName: 'on_schedule_live_message',
+              uploaderName: 'on_schedule_live_media_url',
+            })"
+          >
             <img class="w-5 h-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
           </div>
         </div>
@@ -1461,7 +1632,17 @@ const createEvent = async () => {
         <div class="inline-flex gap-2  justify-between">
           <CheckboxSwitch v-model="formData.xPostBooked" label="Post to X when a booking is received"
             version="dashboard" wrapper-label="Dark Mode" />
-          <div class="flex justify-end cursor-pointer" @click="xRepostPopupOpen = true">
+          <div
+            class="flex justify-end cursor-pointer"
+            @click="openXRepostPopup({
+              title: 'X Repost Settings',
+              checkboxLabel: 'Post to X when a booking is received',
+              checkboxField: 'xPostBooked',
+              inputName: 'on_booking_received',
+              textareaName: 'on_booking_received_message',
+              uploaderName: 'on_booking_received_media_url',
+            })"
+          >
             <img class="w-5 h-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
           </div>
         </div>
@@ -1469,7 +1650,17 @@ const createEvent = async () => {
         <div class="inline-flex gap-2 justify-between">
           <CheckboxSwitch v-model="formData.xPostInSession" label="Post to X when I am in a session" version="dashboard"
             wrapper-label="Dark Mode" />
-          <div class="flex justify-end cursor-pointer" @click="xRepostPopupOpen = true">
+          <div
+            class="flex justify-end cursor-pointer"
+            @click="openXRepostPopup({
+              title: 'X Repost Settings',
+              checkboxLabel: 'Post to X when I am in a session',
+              checkboxField: 'xPostInSession',
+              inputName: 'on_in_session',
+              textareaName: 'on_in_session_message',
+              uploaderName: 'on_in_session_media_url',
+            })"
+          >
             <img class="w-5 h-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
           </div>
         </div>
@@ -1477,7 +1668,17 @@ const createEvent = async () => {
         <div class="inline-flex gap-2 justify-between">
           <CheckboxSwitch v-model="formData.xPostTipped" label="Post to X when I am tipped in a session"
             version="dashboard" wrapper-label="Dark Mode" />
-          <div class="flex justify-end cursor-pointer" @click="xRepostPopupOpen = true">
+          <div
+            class="flex justify-end cursor-pointer"
+            @click="openXRepostPopup({
+              title: 'X Repost Settings',
+              checkboxLabel: 'Post to X when I am tipped in a session',
+              checkboxField: 'xPostTipped',
+              inputName: 'on_tipped_session',
+              textareaName: 'on_tipped_session_message',
+              uploaderName: 'on_tipped_session_media_url',
+            })"
+          >
             <img class="w-5 h-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
           </div>
         </div>
@@ -1485,7 +1686,17 @@ const createEvent = async () => {
         <div class="inline-flex gap-2 justify-between w-full">
           <CheckboxSwitch v-model="formData.xPostPurchase" label="Post to X when someone made a purchase in a session"
             version="dashboard" wrapper-label="Dark Mode" />
-          <div class="flex justify-end cursor-pointer" @click="xRepostPopupOpen = true">
+          <div
+            class="flex justify-end cursor-pointer"
+            @click="openXRepostPopup({
+              title: 'X Repost Settings',
+              checkboxLabel: 'Post to X when someone made a purchase in a session',
+              checkboxField: 'xPostPurchase',
+              inputName: 'on_purchased',
+              textareaName: 'on_purchased_message',
+              uploaderName: 'on_purchased_media_url',
+            })"
+          >
             <img class="w-5 h-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
           </div>
         </div>
@@ -1496,7 +1707,16 @@ const createEvent = async () => {
 
   </div>
   <PopupHandler v-model="xRepostPopupOpen" :config="xRepostPopupConfig">
-    <TwitterRepostSettings />
+    <TwitterRepostSettings
+      v-model="xRepostPopupCheckboxModel"
+      v-model:message-value="xRepostPopupMessageModel"
+      v-model:media-value="xRepostPopupMediaModel"
+      :title="xRepostPopupState.title"
+      :checkbox-label="xRepostPopupState.checkboxLabel"
+      :input-name="xRepostPopupState.inputName"
+      :textarea-name="xRepostPopupState.textareaName"
+      :uploader-name="xRepostPopupState.uploaderName"
+    />
   </PopupHandler>
 
   <SpendingRequirementProductPopup
