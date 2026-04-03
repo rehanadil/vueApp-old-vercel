@@ -423,6 +423,11 @@ function parseTokenBalance(response, receiverId) {
 
 function fireAndForgetCreateSchedule({ bookingId = null, eventId = null } = {}) {
   if (!shouldFireCreateScheduleForInstantBooking(selectedEvent.value)) {
+    console.warn('[create-schedule][instant-booking] gate-skipped', {
+      bookingId,
+      eventId,
+      selectedEvent: selectedEvent.value,
+    });
     return false;
   }
 
@@ -452,6 +457,13 @@ function fireAndForgetCreateSchedule({ bookingId = null, eventId = null } = {}) 
   });
 
   if (!notify.shouldFire || !notify.payload) {
+    console.warn('[create-schedule][instant-booking] payload-not-ready', {
+      bookingId,
+      eventId,
+      previewPayload,
+      notify,
+      selectedEvent: selectedEvent.value,
+    });
     return false;
   }
 
@@ -459,18 +471,49 @@ function fireAndForgetCreateSchedule({ bookingId = null, eventId = null } = {}) 
 }
 
 function fireAndForgetBookingCreated() {
+  console.error('[fireAndForgetBookingCreated] fired', { engineState: props.engine?.state });
+  const engineState = props.engine?.state || {};
+  const bookingTitle = selectedEvent.value?.title || selectedEvent.value?.raw?.title || "Untitled Event";
+  const eventType = selectedEvent.value?.type
+    || selectedEvent.value?.eventType
+    || selectedEvent.value?.raw?.type
+    || selectedEvent.value?.raw?.eventType
+    || "1on1-call";
+  const eventId = selectedEvent.value?.eventId
+    || selectedEvent.value?.id
+    || selectedEvent.value?.raw?.eventId
+    || selectedEvent.value?.raw?.id
+    || engineState.event_id
+    || "";
+
   const payload = {
     creator_id: String(resolveCreatorId() ?? ""),
-    event_name: selectedEvent.value?.title || selectedEvent.value?.raw?.title || "Untitled Event",
-    event_type: selectedEvent.value?.type
-      || selectedEvent.value?.eventType
-      || selectedEvent.value?.raw?.type
-      || selectedEvent.value?.raw?.eventType
-      || "1on1-call",
+    event_name: bookingTitle,
+    event_type: eventType,
     action: "created",
+    event_id: String(eventId),
+    booking_name: bookingTitle,
+    profile_url: String(engineState.profile_url || engineState.profileUrl || ""),
+    on_schedule_live: toBoolean(engineState.on_schedule_live ?? engineState.xPostLive, false),
+    on_booking_received: toBoolean(engineState.on_booking_received ?? engineState.xPostBooked, false),
+    on_in_session: toBoolean(engineState.on_in_session ?? engineState.xPostInSession, false),
+    on_tipped_session: toBoolean(engineState.on_tipped_session ?? engineState.xPostTipped, false),
+    on_purchased_in_session: toBoolean(engineState.on_purchased_in_session ?? engineState.xPostPurchase, false),
+    on_schedule_live_message: String(engineState.on_schedule_live_message || ""),
+    on_booking_received_message: String(engineState.on_booking_received_message || ""),
+    on_in_session_message: String(engineState.on_in_session_message || ""),
+    on_tipped_session_message: String(engineState.on_tipped_session_message || ""),
+    on_purchased_in_session_message: String(engineState.on_purchased_in_session_message || ""),
+    on_schedule_live_media_url: String(engineState.on_schedule_live_media_url || ""),
+    on_booking_received_media_url: String(engineState.on_booking_received_media_url || ""),
+    on_in_session_media_url: String(engineState.on_in_session_media_url || ""),
+    on_tipped_session_media_url: String(engineState.on_tipped_session_media_url || ""),
+    on_purchased_in_session_media_url: String(engineState.on_purchased_in_session_media_url || ""),
   };
 
   const endpoint = import.meta.env.VITE_WEB_BASE_URL + "/wp-json/api/bookings/create";
+
+  console.error('[endpoint] payload', endpoint, { payload });
 
   try {
     if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
@@ -488,6 +531,7 @@ function fireAndForgetBookingCreated() {
     body: JSON.stringify(payload),
     keepalive: true,
   }).catch(() => {
+    console.error('[fireAndForgetBookingCreated] failed to send booking created payload', { endpoint, payload });
     // Fire-and-forget endpoint; ignore transport errors.
   });
 }
@@ -826,8 +870,11 @@ const finalizeBooking = async ({ isTopUpDone = false, nextWalletBalance = null }
       || null;
 
     fireAndForgetCreateSchedule({ bookingId, eventId });
+    console.error('[finalizeBooking] booking created successfully', { bookingId, eventId, result });
     fireAndForgetBookingCreated();
+    console.error('[finalizeBooking] fired booking created analytics');
     fireAndForgetPostBookingChat({ bookingId, eventId });
+    console.error('[finalizeBooking] fired post-booking chat creation');
 
     const currentData = props.engine.getState('bookingDetails') || {};
     const walletAfterBooking = Number.isFinite(Number(nextWalletBalance))
