@@ -1,5 +1,48 @@
 # Changelog
 
+## 2026-04-07 — Pinned Message Pre-loading, Booking/Event Caching & LiveCallRequest Fixes
+
+### Features
+
+#### `src/stores/useChatStore.js`
+- Added `chatPinnedMessages: {}` state — stores the pinned message per chat, keyed by `chat_id`. Populated from `fetchUserChatsAction` (via `getChat` response) and updated by `broadcastBookingUpdate`.
+- Added `chatBookings: {}` state — stores fetched booking data keyed by `booking_id`. Populated when a pinned booking message is detected; refreshed after accept/decline actions.
+- Added `chatEvents: {}` state — stores fetched event data keyed by `event_id`. Populated once after booking is loaded (event id derived from booking).
+- Added getters: `getPinnedMessageByChatId`, `getBookingById`, `getEventById`.
+- Added actions: `setPinnedMessage(chatId, message)`, `setBooking(bookingId, data)`, `setEvent(eventId, data)`.
+- `clearCache` clears all three new maps.
+
+#### `src/services/flow-system/flowRegistry.js`
+- Registered **`"events.fetchEvent"`** flow (`fetchEventFlow` was already imported but unregistered). Used for pre-loading event reminder settings.
+
+### Changes
+
+#### `src/components/ui/chat/ChatWindow.vue`
+- **Pinned banner pre-loading** — watcher on `pinnedBookingMessage` now chains: (1) fetch booking → store via `chatStore.setBooking`, (2) derive `eventId` from booking → fetch event if not already cached → store via `chatStore.setEvent`. Both are non-blocking background fetches.
+- Added `activeBookingData` computed — reads `chatStore.getBookingById` for the active popup message.
+- Added `activeEventData` computed — reads `chatStore.getEventById` via `activeBookingData.eventId`.
+- `openBookingDetail` — triggers a background refresh of booking data each time the popup opens.
+- `onBookingActionComplete` — refreshes cached booking after accept/decline so next popup open shows correct status.
+- Passes `:booking="activeBookingData"` and `:event="activeEventData"` to `BookingRequestDetailPopup`.
+- `pinnedBookingMessage` computed — checks `chatStore.getPinnedMessageByChatId` first (instant, no wait for messages to load), falls back to scanning `allMessages`.
+- `broadcastBookingUpdate` — syncs `chatPinnedMessages`: sets pinned message on `is_pinned = true`, clears it on `is_pinned = false`.
+
+#### `src/components/ui/chat/BookingRequestDetailPopup.vue`
+- Added `booking` prop (pre-fetched data) — when provided, shows details immediately with no spinner, then silently refreshes in background for latest status.
+- Added `event` prop (pre-fetched event data).
+- **`reminderLabel`** — now reads from `event.raw.eventCurrent / eventSnapshot` checking `callReminderMinutesBefore ?? remindBeforeMinutes ?? reminderMinutes ?? reminder_minutes`. Shows `'X minutes before'` only when value > 0; hidden when event is not loaded or reminder not configured. Removed `?? 5` default and stray `console.log`.
+- All action buttons (Accept, Decline, counter-offer, accepted/declined badge) now gated behind `!loading` — never shown before booking data confirms the current state.
+
+#### `src/components/ui/chat/LiveCallRequest.vue`
+- Added **`isExpired`** computed — `true` when `now > startMs`.
+- **`countdownText`** — returns `'Session expired'` when expired (was `'now'`).
+- Countdown dot and text color — gray when expired, red when active.
+- **Join Call button** — disabled (`bg-gray-300 opacity-60 pointer-events-none cursor-not-allowed`, `href`/`target` removed) when expired; normal indigo style when active.
+- **3-dot menu** — hidden for creator when `action === 'accepted'` (added `isAccepted` computed).
+- **"Other Options" button** — always `pointer-events-none` + gray for both creator and fan (removed conditional interactivity).
+
+---
+
 ## 2026-04-06 — requestJoinCallNotification UI & Flows (Session 2)
 
 ### Features

@@ -11,7 +11,7 @@
           {{ eventName }}
         </span>
         <button
-          v-if="!isCounterOffer && !isCancelled && isCreator"
+          v-if="!isCounterOffer && !isCancelled && !isAccepted && isCreator"
           class="shrink-0 p-0.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
           @click.stop="toggleDropdown"
         >
@@ -57,18 +57,21 @@
 
         <!-- Countdown -->
         <div class="flex items-center gap-1.5">
-          <span class="w-2 h-2 rounded-full bg-red-500 shrink-0"></span>
-          <span class="text-red-500 text-xs font-medium">{{ countdownText }}</span>
+          <span class="w-2 h-2 rounded-full shrink-0" :class="isExpired ? 'bg-gray-400' : 'bg-red-500'"></span>
+          <span class="text-xs font-medium" :class="isExpired ? 'text-gray-400' : 'text-red-500'">{{ countdownText }}</span>
         </div>
 
         <!-- Action buttons -->
         <div class="flex items-center gap-2 mt-1">
           <a
             v-if="sessionLink"
-            :href="sessionLink"
-            target="_blank"
+            :href="isExpired ? undefined : sessionLink"
+            :target="isExpired ? undefined : '_blank'"
             rel="noopener noreferrer"
-            class="flex items-center gap-1.5 px-4 py-1.5 rounded-md text-xs font-semibold text-white bg-[#4F46E5] hover:bg-[#4338CA] transition-colors"
+            class="flex items-center gap-1.5 px-4 py-1.5 rounded-md text-xs font-semibold text-white transition-colors"
+            :class="isExpired
+              ? 'bg-gray-300 cursor-not-allowed pointer-events-none opacity-60'
+              : 'bg-[#4F46E5] hover:bg-[#4338CA] cursor-pointer'"
           >
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round"
@@ -78,11 +81,7 @@
             Join Call
           </a>
           <button
-            class="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium border transition-colors"
-            :class="isCreator
-              ? 'text-gray-600 border-gray-300 hover:bg-gray-50 cursor-pointer'
-              : 'text-gray-300 border-gray-200 pointer-events-none cursor-default'"
-            @click.stop="isCreator && toggleDropdown()"
+            class="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium border text-gray-300 border-gray-200 pointer-events-none cursor-default"
           >
             <span>···</span>
             Other Options
@@ -191,6 +190,7 @@ const eventName    = computed(() => content.value.event_name   || 'Upcoming Sess
 const sessionLink  = computed(() => content.value.session_link || null)
 const isCounterOffer = computed(() => content.value.action === 'counter_offer')
 const isCancelled    = computed(() => ['cancelled', 'declined'].includes(content.value.action))
+const isAccepted     = computed(() => content.value.action === 'accepted')
 
 // ── Dropdown ──────────────────────────────────────────────────────────────────
 const showDropdown = ref(false)
@@ -215,11 +215,16 @@ function parseStartMs() {
   return isNaN(ms) ? null : ms
 }
 
+const isExpired = computed(() => {
+  const startMs = parseStartMs()
+  return startMs ? now.value > startMs : false
+})
+
 const countdownText = computed(() => {
   const startMs = parseStartMs()
   if (!startMs) return '—'
   const diff = startMs - now.value
-  if (diff <= 0) return 'now'
+  if (diff <= 0) return 'Session expired'
   const totalSec = Math.floor(diff / 1000)
   const mins     = Math.floor(totalSec / 60)
   const secs     = totalSec % 60

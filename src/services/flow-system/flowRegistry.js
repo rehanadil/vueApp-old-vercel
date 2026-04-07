@@ -68,6 +68,17 @@ import {
 } from "@/services/rental/mappers/rentalWriteMappers.js";
 
 export const flowRegistry = {
+  "events.fetchEvent": {
+    flowKind: "read",
+    flow: fetchEventFlow,
+    pipeline: {
+      timeouts: { requestMs: 8000, totalFlowMs: 10000 },
+      retry: { enabled: false },
+      concurrency: { policy: "latestWins", dedupe: true, keyByPayload: true },
+      destinations: [],
+      uiErrorMap: {},
+    },
+  },
   "events.fetchCreatorEvents": {
     flowKind: "read",
     flow: fetchCreatorEventsFlow,

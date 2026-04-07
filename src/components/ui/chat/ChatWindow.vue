@@ -60,9 +60,29 @@ const showCancelCallPopup     = ref(false)
 const activeBookingMessage = ref(null)
 const bookingActionLoading = ref(false)
 
+// Pre-fetched booking for the active popup message (may be null until loaded)
+const activeBookingData = computed(() => {
+  const bookingId = activeBookingMessage.value?.content?.booking_id
+  return bookingId ? chatStore.getBookingById(bookingId) : null
+})
+
+// Pre-fetched event for the active popup message
+const activeEventData = computed(() => {
+  const booking = activeBookingData.value
+  const eventId = booking?.eventId ?? booking?.event_id
+  return eventId ? chatStore.getEventById(eventId) : null
+})
+
 function openBookingDetail(message) {
   activeBookingMessage.value = message
   showBookingPopup.value = true
+  // Refresh booking data in background when popup opens
+  const bookingId = message?.content?.booking_id
+  if (bookingId) {
+    FlowHandler.run('bookings.fetchBooking', { bookingId }).then((res) => {
+      if (res?.ok) chatStore.setBooking(bookingId, res.data?.item || null)
+    })
+  }
 }
 
 function openAdjustPopup(message) {
@@ -96,6 +116,19 @@ function broadcastBookingUpdate(item) {
   // Update the message in the chat list in-place so the bubble re-renders
   chatStore.addMessage(activeChatId.value, item)
   chatStore.updateChatLastMessage(activeChatId.value, item)
+  // Keep chatPinnedMessages in sync: if this is a pinnable type, update/clear accordingly
+  const pinnableTypes = ['requestJoinCallNotification', 'booking_request']
+  if (pinnableTypes.includes(item.content_type)) {
+    if (item.is_pinned === false) {
+      // Unpinned — clear stored pinned message only if it's the same message
+      const current = chatStore.getPinnedMessageByChatId(activeChatId.value)
+      if (current?.message_id === item.message_id) {
+        chatStore.setPinnedMessage(activeChatId.value, null)
+      }
+    } else if (item.is_pinned) {
+      chatStore.setPinnedMessage(activeChatId.value, item)
+    }
+  }
   const allParticipants = chatStore.chatParticipants[activeChatId.value] || []
   const recipients = allParticipants
     .map((id) => parseInt(id, 10))
@@ -161,7 +194,15 @@ async function onBookingActionComplete({ decision, bookingId }) {
     action:    newAction,
   })
 
-  if (res?.ok) broadcastBookingUpdate(res.data?.item)
+  if (res?.ok) {
+    broadcastBookingUpdate(res.data?.item)
+    // Refresh cached booking so next popup open shows updated status
+    if (bookingId) {
+      FlowHandler.run('bookings.fetchBooking', { bookingId }).then((r) => {
+        if (r?.ok) chatStore.setBooking(bookingId, r.data?.item || null)
+      })
+    }
+  }
 }
 
 function onAdjustSubmitted({ item }) {
@@ -359,8 +400,16 @@ const messages = computed(() => allMessages.value.filter(m => {
 }))
 
 // The pinned banner message — requestJoinCallNotification takes priority over booking_request.
+// First checks store's chatPinnedMessages (populated from getChat API, available immediately on open).
+// Falls back to scanning loaded messages (populated as messages stream in).
 // booking_request messages with is_pinned === false (explicitly unpinned) are excluded.
 const pinnedBookingMessage = computed(() => {
+  const chatId = activeChatId.value
+  // Prefer the pre-fetched pinned message from getChat (available before messages load)
+  const stored = chatId ? chatStore.getPinnedMessageByChatId(chatId) : null
+  if (stored && stored.is_pinned !== false) return stored
+
+  // Fallback: scan messages already in store (catches real-time pin events)
   const list = allMessages.value
   for (let i = list.length - 1; i >= 0; i--) {
     if (list[i].content_type === 'requestJoinCallNotification') return list[i]
@@ -615,6 +664,27 @@ function onEmojiPickerOutside(e) {
 watch(() => messages.value.length, () => {
   observeNewRows()
 })
+
+// Fetch and cache booking + event details as soon as a pinned booking message is available.
+// This means both are ready before the user opens the detail popup.
+watch(pinnedBookingMessage, (msg) => {
+  const bookingId = msg?.content?.booking_id
+  if (!bookingId) return
+
+  FlowHandler.run('bookings.fetchBooking', { bookingId }).then((res) => {
+    if (!res?.ok) return
+    const bookingItem = res.data?.item || null
+    chatStore.setBooking(bookingId, bookingItem)
+
+    // Fetch event once booking is loaded (event id comes from booking)
+    const eventId = bookingItem?.eventId ?? bookingItem?.event_id
+    if (eventId && !chatStore.getEventById(eventId)) {
+      FlowHandler.run('events.fetchEvent', { eventId }).then((evRes) => {
+        if (evRes?.ok) chatStore.setEvent(eventId, evRes.data?.item || null)
+      })
+    }
+  })
+}, { immediate: true })
 
 // Mark the pinned booking message as read as soon as it becomes visible
 // (it lives outside the IntersectionObserver's scrollable root)
@@ -894,6 +964,8 @@ onUnmounted(() => {
   <BookingRequestDetailPopup
     v-if="showBookingPopup && activeBookingMessage"
     :message="activeBookingMessage"
+    :booking="activeBookingData"
+    :event="activeEventData"
     :is-creator="isCreatorAccount"
     :chat-id="activeChatId"
     :current-user-id="currentUserId"

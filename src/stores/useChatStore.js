@@ -7,11 +7,23 @@ export const useChatStore = defineStore("chat", {
     userChats: [],
     chatParticipants: {},
     chatUsersData: {},
+    chatPinnedMessages: {},
+    chatBookings: {},
+    chatEvents: {},
   }),
 
   getters: {
     getMessagesByChatId: (state) => {
       return (chatId) => state.messages[chatId] || [];
+    },
+    getPinnedMessageByChatId: (state) => {
+      return (chatId) => state.chatPinnedMessages[chatId] ?? null;
+    },
+    getBookingById: (state) => {
+      return (bookingId) => state.chatBookings[bookingId] ?? null;
+    },
+    getEventById: (state) => {
+      return (eventId) => state.chatEvents[eventId] ?? null;
     },
     sortedUserChats: (state) => {
       return [...state.userChats].sort((a, b) => {
@@ -95,7 +107,25 @@ export const useChatStore = defineStore("chat", {
         if (c.chat_id && Array.isArray(c.participants)) {
           this.chatParticipants[c.chat_id] = c.participants;
         }
+        if (c.chat_id && c.pinned_message) {
+          this.chatPinnedMessages[c.chat_id] = c.pinned_message;
+        }
       });
+    },
+
+    setPinnedMessage(chatId, message) {
+      if (!chatId) return;
+      this.chatPinnedMessages[chatId] = message ?? null;
+    },
+
+    setBooking(bookingId, data) {
+      if (!bookingId) return;
+      this.chatBookings[bookingId] = data ?? null;
+    },
+
+    setEvent(eventId, data) {
+      if (!eventId) return;
+      this.chatEvents[eventId] = data ?? null;
     },
 
     setChatUsersDataAction({ users }) {
@@ -161,6 +191,9 @@ export const useChatStore = defineStore("chat", {
       this.userChats = [];
       this.chatParticipants = {};
       this.chatUsersData = {};
+      this.chatPinnedMessages = {};
+      this.chatBookings = {};
+      this.chatEvents = {};
     },
   },
 });
