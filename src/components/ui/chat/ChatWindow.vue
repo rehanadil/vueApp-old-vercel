@@ -2,8 +2,12 @@
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import FlexChat from '@/components/ui/chat/FlexChat.vue'
 import BookingRequestBubble from '@/components/ui/chat/BookingRequestBubble.vue'
+import LiveCallRequest      from '@/components/ui/chat/LiveCallRequest.vue'
 import BookingRequestDetailPopup from '@/components/ui/chat/BookingRequestDetailPopup.vue'
 import AdjustBookingPopup        from '@/components/ui/chat/AdjustBookingPopup.vue'
+import MoreTimeRequestPopup      from '@/components/ui/chat/MoreTimeRequestPopup.vue'
+import RescheduleRequestPopup    from '@/components/ui/chat/RescheduleRequestPopup.vue'
+import CancelCallConfirmPopup    from '@/components/ui/chat/CancelCallConfirmPopup.vue'
 import { useChatStore } from '@/stores/useChatStore'
 import { resolveUserId } from '@/utils/resolveUserId'
 import { resolveParentUserData } from '@/utils/resolveParentUserData'
@@ -48,8 +52,11 @@ const bookingSenderName = computed(() => {
 })
 
 // ── Booking request popup ─────────────────────────────────────────────────────
-const showBookingPopup    = ref(false)
-const showAdjustPopup     = ref(false)
+const showBookingPopup        = ref(false)
+const showAdjustPopup         = ref(false)
+const showMoreTimePopup       = ref(false)
+const showReschedulePopup     = ref(false)
+const showCancelCallPopup     = ref(false)
 const activeBookingMessage = ref(null)
 const bookingActionLoading = ref(false)
 
@@ -75,6 +82,7 @@ async function sendChatActivityLog(text, meta) {
   })
   if (res?.ok) {
     chatStore.addMessage(activeChatId.value, res.data.item)
+    chatStore.updateChatLastMessage(activeChatId.value, res.data.item)
     const allParticipants = chatStore.chatParticipants[activeChatId.value] || []
     const recipients = allParticipants
       .map((id) => parseInt(id, 10))
@@ -165,6 +173,41 @@ function onAdjustSubmitted({ item }) {
     decision: 'counter_offer',
     bookingId: msg?.content?.booking_id,
   })
+}
+
+// ── requestJoinCallNotification counter_offer responses (creator) ─────────────
+async function onAcceptCounter(message) {
+  if (!activeChatId.value || !message?.message_id) return
+  const res = await FlowHandler.run('chat.updateMessage', {
+    chatId:    activeChatId.value,
+    messageId: message.message_id,
+    updates:   { action: 'accepted' },
+  })
+  if (res?.ok) {
+    broadcastBookingUpdate(res.data?.item)
+    sendChatActivityLog('New time accepted', {
+      is_booking_request: true,
+      decision: 'accepted',
+      bookingId: message.content?.booking_id,
+    })
+  }
+}
+
+async function onRejectCounter(message) {
+  if (!activeChatId.value || !message?.message_id) return
+  const res = await FlowHandler.run('chat.updateMessage', {
+    chatId:    activeChatId.value,
+    messageId: message.message_id,
+    updates:   { action: 'declined' },
+  })
+  if (res?.ok) {
+    broadcastBookingUpdate(res.data?.item)
+    sendChatActivityLog('New time rejected', {
+      is_booking_request: true,
+      decision: 'declined',
+      bookingId: message.content?.booking_id,
+    })
+  }
 }
 
 function onConfirmCounter(message) {
@@ -306,14 +349,24 @@ function getMessageReaders(msg) {
 
 const allMessages = computed(() => activeChatId.value ? chatStore.getMessagesByChatId(activeChatId.value) : [])
 
-// Exclude booking_request messages from the scroll list — they are shown in the pinned banner instead
-const messages = computed(() => allMessages.value.filter(m => m.content_type !== 'booking_request'))
+// Exclude from scroll list while pinned — show in banner instead.
+// booking_request: excluded only while still pinned (is_pinned !== false); once unpinned it appears in chat.
+// requestJoinCallNotification: always in banner only.
+const messages = computed(() => allMessages.value.filter(m => {
+  if (m.content_type === 'requestJoinCallNotification') return false
+  if (m.content_type === 'booking_request' && m.is_pinned !== false) return false
+  return true
+}))
 
-// The most recent booking_request message — shown as a pinned banner at the top
+// The pinned banner message — requestJoinCallNotification takes priority over booking_request.
+// booking_request messages with is_pinned === false (explicitly unpinned) are excluded.
 const pinnedBookingMessage = computed(() => {
   const list = allMessages.value
   for (let i = list.length - 1; i >= 0; i--) {
-    if (list[i].content_type === 'booking_request') return list[i]
+    if (list[i].content_type === 'requestJoinCallNotification') return list[i]
+  }
+  for (let i = list.length - 1; i >= 0; i--) {
+    if (list[i].content_type === 'booking_request' && list[i].is_pinned !== false) return list[i]
   }
   return null
 })
@@ -324,8 +377,46 @@ const _markedReadIds  = new Set()
 const _observedIds    = new Set()
 let   _observer       = null
 
+// Pending batch of visible messages accumulated within a single microtask tick.
+// We only call markMessageRead once per batch — for the message with the highest
+// message_ts — to avoid concurrent writes racing and stomping a newer timestamp
+// with an older one.
+let _pendingVisibleBatch = null
+
+function _flushVisibleBatch() {
+  const batch = _pendingVisibleBatch
+  _pendingVisibleBatch = null
+  if (!batch || batch.length === 0) return
+
+  // Update local store and pick the entry with the highest timestamp for the API call.
+  let latestEntry = null
+  for (const entry of batch) {
+    chatStore.updateMessageStatusAction({ chatId: activeChatId.value, messageId: entry.messageId, status: 'read' })
+    chatStore.updateChatUnread(activeChatId.value, false)
+    const msg = messages.value.find(m => (m.message_id || m.id) === entry.messageId)
+    const ts = msg?.message_ts ?? msg?.time ?? 0
+    if (!latestEntry || ts > latestEntry.ts) {
+      latestEntry = { ...entry, ts }
+    }
+  }
+
+  if (!latestEntry) return
+  const { messageId, senderId } = latestEntry
+
+  FlowHandler.run('chat.markMessageRead', {
+    chatId: activeChatId.value,
+    messageId,
+    userId: currentUserId,
+  }).then(res => {
+    if (senderId) {
+      const readReceipts = res?.data?.result?.read_receipts ?? []
+      props.socket?.sendStatusUpdate(activeChatId.value, messageId, 'read', senderId, readReceipts)
+    }
+  })
+}
+
 function _onMessageVisible(entries) {
-  entries.forEach(async (entry) => {
+  entries.forEach((entry) => {
     if (!entry.isIntersecting) return
     const el        = entry.target
     const messageId = el.dataset.messageId
@@ -337,20 +428,11 @@ function _onMessageVisible(entries) {
     _markedReadIds.add(messageId)
     _observer?.unobserve(el)
 
-    chatStore.updateMessageStatusAction({ chatId: activeChatId.value, messageId, status: 'read' })
-    chatStore.updateChatUnread(activeChatId.value, false)
-
-    const res = await FlowHandler.run('chat.markMessageRead', {
-      chatId: activeChatId.value,
-      messageId,
-      userId: currentUserId,
-    })
-
-    if (senderId) {
-      console.error("Marking message as read", { chatId: activeChatId.value, messageId, senderId, res })
-      const readReceipts = res?.data?.result?.read_receipts ?? []
-      props.socket?.sendStatusUpdate(activeChatId.value, messageId, 'read', senderId, readReceipts)
+    if (!_pendingVisibleBatch) {
+      _pendingVisibleBatch = []
+      queueMicrotask(_flushVisibleBatch)
     }
+    _pendingVisibleBatch.push({ messageId, senderId })
   })
 }
 
@@ -543,6 +625,10 @@ watch(pinnedBookingMessage, async (msg) => {
   if (!messageId) return
   if (senderId === String(currentUserId)) return   // own message
   if (_markedReadIds.has(messageId)) return        // already handled
+  if (msg.status === 'read') { 
+    _markedReadIds.add(messageId); 
+    return // already read 
+  }
 
   _markedReadIds.add(messageId)
   chatStore.updateMessageStatusAction({ chatId: activeChatId.value, messageId, status: 'read' })
@@ -604,7 +690,21 @@ onUnmounted(() => {
     >
       <!-- Pinned booking banner -->
       <template v-if="pinnedBookingMessage" #pinned-banner>
+        <!-- Call starting soon — shown when scheduler sends requestJoinCallNotification -->
+        <LiveCallRequest
+          v-if="pinnedBookingMessage.content_type === 'requestJoinCallNotification'"
+          :message="pinnedBookingMessage"
+          :is-creator="isCreatorAccount"
+          @ask-more-time="activeBookingMessage = pinnedBookingMessage; showMoreTimePopup = true"
+          @reschedule="activeBookingMessage = pinnedBookingMessage; showReschedulePopup = true"
+          @cancel="activeBookingMessage = pinnedBookingMessage; showCancelCallPopup = true"
+          @accept-counter="onAcceptCounter(pinnedBookingMessage)"
+          @reject-counter="onRejectCounter(pinnedBookingMessage)"
+          @view-details="openBookingDetail(pinnedBookingMessage)"
+        />
+        <!-- Normal booking request card -->
         <BookingRequestBubble
+          v-else
           :message="pinnedBookingMessage"
           :is-creator="isCreatorAccount"
           :disabled="bookingActionLoading"
@@ -812,5 +912,34 @@ onUnmounted(() => {
     :chat-id="activeChatId"
     @submitted="onAdjustSubmitted"
     @close="showAdjustPopup = false"
+  />
+
+  <!-- Ask for more time popup (requestJoinCallNotification) -->
+  <MoreTimeRequestPopup
+    v-if="showMoreTimePopup && activeBookingMessage"
+    :message="activeBookingMessage"
+    :chat-id="activeChatId"
+    :other-user-name="bookingSenderName"
+    @submitted="broadcastBookingUpdate($event)"
+    @close="showMoreTimePopup = false"
+  />
+
+  <!-- Ask to reschedule popup (requestJoinCallNotification) -->
+  <RescheduleRequestPopup
+    v-if="showReschedulePopup && activeBookingMessage"
+    :message="activeBookingMessage"
+    :chat-id="activeChatId"
+    :other-user-name="bookingSenderName"
+    @submitted="broadcastBookingUpdate($event)"
+    @close="showReschedulePopup = false"
+  />
+
+  <!-- Cancel call confirmation popup (requestJoinCallNotification) -->
+  <CancelCallConfirmPopup
+    v-if="showCancelCallPopup && activeBookingMessage"
+    :message="activeBookingMessage"
+    :chat-id="activeChatId"
+    @cancelled="broadcastBookingUpdate(activeBookingMessage)"
+    @close="showCancelCallPopup = false"
   />
 </template>

@@ -13,6 +13,13 @@ export const useChatStore = defineStore("chat", {
     getMessagesByChatId: (state) => {
       return (chatId) => state.messages[chatId] || [];
     },
+    sortedUserChats: (state) => {
+      return [...state.userChats].sort((a, b) => {
+        const tsA = a.last_message?.message_ts ?? a.last_message?.time ?? a.last_activity ?? 0
+        const tsB = b.last_message?.message_ts ?? b.last_message?.time ?? b.last_activity ?? 0
+        return tsB - tsA
+      })
+    },
   },
 
   actions: {
@@ -98,8 +105,16 @@ export const useChatStore = defineStore("chat", {
     },
 
     updateChatLastMessage(chatId, message) {
-      const chat = this.userChats.find((c) => c.chat_id === chatId);
-      if (chat) chat.last_message = message;
+      const idx = this.userChats.findIndex((c) => c.chat_id === chatId)
+      if (idx === -1) return
+      this.userChats[idx].last_message = message
+      const ts = message?.message_ts ?? message?.time ?? null
+      if (ts) this.userChats[idx].last_activity = ts
+      // Move chat to front so the array mutation triggers Vue re-render
+      if (idx > 0) {
+        const [moved] = this.userChats.splice(idx, 1)
+        this.userChats.unshift(moved)
+      }
     },
 
     updateChatUnread(chatId, hasUnread) {

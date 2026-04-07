@@ -16,6 +16,7 @@ import { markMessageReadFlow } from "@/services/chat/flows/markMessageReadFlow.j
 import { getUnreadCountFlow } from "@/services/chat/flows/getUnreadCountFlow.js";
 import { sendBookingRequestMessageFlow } from "@/services/chat/flows/sendBookingRequestMessageFlow.js";
 import { updateBookingRequestMessageFlow } from "@/services/chat/flows/updateBookingRequestMessageFlow.js";
+import { updateMessageFlow } from "@/services/chat/flows/updateMessageFlow.js";
 import { sendChatActivityLogFlow } from "@/services/chat/flows/sendChatActivityLogFlow.js";
 import { pinMessageFlow } from "@/services/chat/flows/pinMessageFlow.js";
 import { fetchSpendingRequirementItemsFlow } from "@/services/events/flows/fetchSpendingRequirementItemsFlow.js";
@@ -739,6 +740,17 @@ export const flowRegistry = {
   "chat.updateBookingRequestMessage": {
     flowKind: "write",
     flow: updateBookingRequestMessageFlow,
+    pipeline: {
+      timeouts: { requestMs: 10000, totalFlowMs: 15000 },
+      retry: { enabled: false },
+      concurrency: { policy: "firstWins", dedupe: false, keyByPayload: false },
+      destinations: [],
+      uiErrorMap: {},
+    },
+  },
+  "chat.updateMessage": {
+    flowKind: "write",
+    flow: updateMessageFlow,
     pipeline: {
       timeouts: { requestMs: 10000, totalFlowMs: 15000 },
       retry: { enabled: false },

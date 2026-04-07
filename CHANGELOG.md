@@ -1,5 +1,76 @@
 # Changelog
 
+## 2026-04-06 — requestJoinCallNotification UI & Flows (Session 2)
+
+### Features
+
+#### `src/components/ui/chat/LiveCallRequest.vue`
+- Redesigned to match spec: indigo left border, event title, date/time, red countdown dot, "Join Call" button, "Other Options" button.
+- **Counter-offer state** (`content.action === 'counter_offer'`): shows original time struck-through in gray, proposed new time in indigo, "View detail ›" link, and Accept/Reject buttons for fan; creator sees "Waiting for fan to respond…".
+- **Cancelled/declined state** (`content.action === 'cancelled'|'declined'`): shows red phone icon + "Canceled" label and "View Details ↗" link; 3-dot menu hidden.
+- 3-dot menu and "Other Options" button visible to creator only; "Other Options" shown to fan but grayed out with `pointer-events-none`.
+- Emits: `ask-more-time`, `reschedule`, `cancel`, `accept-counter`, `reject-counter`, `view-details`.
+
+#### `src/components/ui/chat/MoreTimeRequestPopup.vue` (new)
+- Clock icon header, event date (read-only), new start time input (pre-filled from `start_at`), auto-calculated end time from original duration, original start time hint.
+- Submits `chat.updateMessage` with `action: 'counter_offer'`, `slot_date` (new ISO time combined with original date).
+- Green "Send request to @username" button with send arrow icon.
+
+#### `src/components/ui/chat/RescheduleRequestPopup.vue` (new)
+- Calendar icon header, new date picker (pre-filled) with original event date hint, new start time (pre-filled) with auto end time and original start time hint.
+- Submits `chat.updateMessage` with `action: 'counter_offer'`, `slot_date`.
+- Green "Send request to @username" button.
+
+#### `src/components/ui/chat/CancelCallConfirmPopup.vue` (new)
+- Phone icon header, warning message ("Booking Fee will still be deducted from your wallet"), Back + Cancel Call buttons.
+- Runs `bookings.cancelBooking` then `chat.updateMessage` with `action: 'cancelled'`.
+
+#### `src/services/chat/flows/updateMessageFlow.js` (new)
+- Generic `chat.updateMessage` flow — `PATCH /chats/:chatId/messages/:messageId` with arbitrary content updates.
+- Registered in `flowRegistry.js`.
+
+#### `src/components/ui/chat/ChatWindow.vue`
+- Imported and wired `MoreTimeRequestPopup`, `RescheduleRequestPopup`, `CancelCallConfirmPopup`.
+- Added `showMoreTimePopup`, `showReschedulePopup`, `showCancelCallPopup` refs.
+- Added `onAcceptCounter` / `onRejectCounter` handlers — call `chat.updateMessage` and send activity log.
+- `sendChatActivityLog` now calls `updateChatLastMessage` so activity log text appears in chat list preview immediately.
+- `messages` filter: `booking_request` now excluded only while `is_pinned !== false`; once unpinned it appears in scroll list.
+
+#### `src/components/ui/chat/ChatListPanel.vue`
+- `getLastMessageText`: `activity_log` shows `content.text` directly; `requestJoinCallNotification` shows `"Session starting soon"`.
+
+---
+
+## 2026-04-06 — Chat Negotiation/Approval
+
+### Features
+
+#### `src/components/ui/chat/LiveCallRequest.vue` (new)
+- New pinned-banner component for `requestJoinCallNotification` messages.
+- Displays pulsing green dot, live countdown clock (1-second interval), event name, formatted start date/time, and a "Join Now" button linking to `session_link`.
+- Props: `message` (Object, required), `isCreator` (Boolean, default false).
+- Session label resolves `video` → "Video call", `voice` → "Audio call", else "Session".
+
+#### `src/components/ui/chat/ChatWindow.vue`
+- Imported and registered `LiveCallRequest` component.
+- `messages` computed now excludes both `booking_request` and `requestJoinCallNotification` from the scrollable list (both shown only in pinned banner).
+- `pinnedBookingMessage` computed: `requestJoinCallNotification` takes priority over `booking_request`; `booking_request` messages with `is_pinned === false` (explicitly unpinned by scheduler) are excluded.
+- Pinned banner slot conditionally renders `LiveCallRequest` for `requestJoinCallNotification` or `BookingRequestBubble` for `booking_request`.
+
+#### `src/stores/useChatStore.js`
+- Added `sortedUserChats` getter — returns `userChats` sorted descending by `last_message.message_ts ?? last_message.time ?? last_activity ?? 0`.
+- `updateChatLastMessage` now uses `splice`/`unshift` to physically move the updated chat to the top of the array, guaranteeing Vue reactivity re-render.
+
+#### `src/components/ui/chat/ChatListPanel.vue`
+- `v-for` switched from `chatStore.userChats` to `chatStore.sortedUserChats` so the list re-orders on new messages.
+
+### Fixes
+
+#### `src/components/ui/chat/ChatWindow.vue`
+- `_onMessageVisible` batches visible messages via `queueMicrotask`; only calls `markMessageRead` once per tick for the message with the highest `message_ts`, preventing concurrent writes that could overwrite a newer timestamp with an older one.
+
+---
+
 ## 2026-04-04 (Session 5)
 
 ### Features
