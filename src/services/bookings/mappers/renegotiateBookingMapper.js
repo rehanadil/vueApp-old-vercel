@@ -33,6 +33,7 @@ export function mapRenegotiateBookingToRequest(input = {}) {
     ...(input?.sessionDurationMinutes !== undefined ? { sessionDurationMinutes: input.sessionDurationMinutes } : {}),
     ...(input?.costTokens !== undefined ? { costTokens: input.costTokens } : {}),
     ...(requestedAddOns !== undefined ? { requestedAddOns } : {}),
+    ...(input?.startAtIso !== undefined ? { startAtIso: input.startAtIso } : {}),
     actor: input?.actor || "system",
     args: input?.args && typeof input.args === "object" ? input.args : {},
   };

@@ -47,6 +47,7 @@ Accepted payload fields:
 - `sessionDurationMinutes` optional
 - `costTokens` optional
 - `requestedAddOns` optional
+- `startAtIso` optional — reschedules the booking to the new time as part of the same operation
 - `actor` optional, defaults to `"system"`
 - `args` optional
 
