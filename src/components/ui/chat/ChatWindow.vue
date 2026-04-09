@@ -164,6 +164,7 @@ async function performBookingDecision(message, decision) {
   })
 
   bookingActionLoading.value = false
+  showBookingPopup.value = false
 
   if (res?.ok) {
     broadcastBookingUpdate(res.data?.item)
@@ -185,30 +186,6 @@ function onDirectAccept(message) {
 
 function onDirectDecline(message) {
   performBookingDecision(message, 'reject')
-}
-
-async function onBookingActionComplete({ decision, bookingId }) {
-  showBookingPopup.value = false
-  if (!activeChatId.value) return
-
-  const messageId = activeBookingMessage.value?.message_id
-  const newAction = decision === 'approve' ? 'accepted' : 'declined'
-
-  const res = await FlowHandler.run('chat.updateBookingRequestMessage', {
-    chatId:    activeChatId.value,
-    messageId,
-    action:    newAction,
-  })
-
-  if (res?.ok) {
-    broadcastBookingUpdate(res.data?.item)
-    // Refresh cached booking so next popup open shows updated status
-    if (bookingId) {
-      FlowHandler.run('bookings.fetchBooking', { bookingId }).then((r) => {
-        if (r?.ok) chatStore.setBooking(bookingId, r.data?.item || null)
-      })
-    }
-  }
 }
 
 function onAdjustSubmitted({ item }) {
@@ -289,7 +266,7 @@ async function _doConfirmCounter(bookingId, message) {
   broadcastBookingUpdate(updateRes?.data?.item || message)
   sendChatActivityLog('Counter offer accepted', {
     is_booking_request: true,
-    decision:           'accepted',
+    decision:           'counter_offer_accepted',
     bookingId,
   })
 }
@@ -382,7 +359,14 @@ async function onCancelBooking(message) {
     messageId,
     action:    'declined',
   })
-  if (updateRes?.ok) broadcastBookingUpdate(updateRes.data?.item)
+  if (updateRes?.ok) {
+    broadcastBookingUpdate(updateRes.data?.item)
+    sendChatActivityLog('Counter offer declined', {
+      is_booking_request: true,
+      decision:           'counter_offer_declined',
+      bookingId:          content.booking_id,
+    })
+  }
 }
 
 function variantForMessage(msg) {
@@ -392,10 +376,16 @@ function variantForMessage(msg) {
 }
 const ActivityLogTexts = {
   'accepted': {
-    // 'creator': "You have just confirmed @{audience}'s booking",
-    // 'audience': "@{creator} has just confirmed your booking",
-    'audience': "You have just confirmed @{creator}'s booking",
-    'creator': "@{audience} has just confirmed your booking",
+    'creator': "You have just confirmed @{audience}'s booking",
+    'audience': "@{creator} has just confirmed your booking",
+  },
+  'counter_offer_accepted': {
+    'audience': "You have just confirmed @{creator}'s adjustment",
+    'creator': "@{audience} has just confirmed your adjustment",
+  },
+  'counter_offer_declined': {
+    'audience': "You have just declined @{creator}'s adjustment",
+    'creator': "@{audience} has just declined your adjustment",
   },
   'declined': {
     'creator': "You have just declined @{audience}'s booking",
@@ -415,7 +405,7 @@ function resolveActivityLogText(message) {
   // ── Step 1: template resolution for booking activity logs ────────────────
   let workingText = rawText
   if (meta.is_booking_request) {
-    const decisionMap = { approve: 'accepted', reject: 'declined', accepted: 'accepted', declined: 'declined', counter_offer: 'counter_offer' }
+    const decisionMap = { approve: 'accepted', reject: 'declined', accepted: 'accepted', declined: 'declined', counter_offer: 'counter_offer', counter_offer_declined: 'counter_offer_declined', counter_offer_accepted: 'counter_offer_accepted' }
     const action   = decisionMap[meta.decision] || null
     const role     = isCreatorAccount.value ? 'creator' : 'audience'
     const template = action ? ActivityLogTexts[action]?.[role] : null
@@ -1097,7 +1087,9 @@ onUnmounted(() => {
     :is-creator="isCreatorAccount"
     :chat-id="activeChatId"
     :current-user-id="currentUserId"
-    @action-complete="onBookingActionComplete"
+    :loading="bookingActionLoading"
+    @accept="onDirectAccept(activeBookingMessage)"
+    @decline="onDirectDecline(activeBookingMessage)"
     @adjust="openAdjustPopup(activeBookingMessage)"
     @confirm-counter="onConfirmCounter(activeBookingMessage)"
     @cancel-booking="onCancelBooking(activeBookingMessage)"

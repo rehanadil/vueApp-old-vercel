@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-04-09 — Booking Action Unification & Activity Log Improvements
+
+### Refactor
+
+#### `src/components/ui/chat/BookingRequestDetailPopup.vue`
+- Removed `handleAccept`, `handleDecline`, `actionLoading` ref and the duplicate `bookings.reviewPendingBooking` calls — the popup no longer owns the decision logic.
+- Accept and Decline buttons now emit `'accept'` / `'decline'` (same events as `BookingRequestBubble`), letting `ChatWindow` handle the full flow via the shared `performBookingDecision`.
+- Added `loading` prop (Boolean) — passed from `ChatWindow.bookingActionLoading` to disable buttons while the API call is in flight.
+- Renamed internal fetch spinner state from `loading` to `fetchLoading` to avoid conflict with the new `loading` prop.
+
+#### `src/components/ui/chat/ChatWindow.vue`
+- `performBookingDecision` now closes `showBookingPopup` after the API call completes — popup closes only on success/failure, not immediately on click.
+- Removed `onBookingActionComplete` — no longer needed; popup uses `@accept` / `@decline` → `onDirectAccept` / `onDirectDecline`.
+- `BookingRequestDetailPopup` binding updated: `@action-complete` replaced with `@accept` / `@decline`; `:loading="bookingActionLoading"` added.
+
+### Features
+
+#### `src/components/ui/chat/ChatWindow.vue`
+- **`_doConfirmCounter`**: activity log `decision` field updated to `'counter_offer_accepted'`.
+- **`onCancelBooking`**: added `sendChatActivityLog` with `decision: 'counter_offer_declined'` after the message update succeeds — fan-side counter-offer decline is now tracked in the activity log.
+
+---
+
 ## 2026-04-08 — Fan Counter-Offer Accept: Token Check, Topup Flow & Message Update
 
 ### Features

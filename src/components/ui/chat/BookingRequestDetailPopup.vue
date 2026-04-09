@@ -30,12 +30,12 @@
             </div>
 
             <!-- Loading -->
-            <div v-if="loading" class="w-full flex justify-center py-6">
+            <div v-if="fetchLoading" class="w-full flex justify-center py-6">
               <div class="w-6 h-6 border-2 border-[#5549FF] border-t-transparent rounded-full animate-spin" />
             </div>
 
             <!-- Error -->
-            <div v-else-if="fetchError" class="text-red-500 text-sm">
+            <div v-else-if="!fetchLoading && fetchError" class="text-red-500 text-sm">
               {{ fetchError }}
             </div>
 
@@ -121,20 +121,20 @@
             </div>
 
             <!-- Actions (creator + pending) -->
-            <div v-if="!loading && isCreator && currentAction === 'pending'" class="w-full flex items-center flex-wrap gap-x-2 gap-y-3 pt-3">
+            <div v-if="!fetchLoading && isCreator && currentAction === 'pending'" class="w-full flex items-center flex-wrap gap-x-2 gap-y-3 pt-3">
               <button
                 type="button"
-                :disabled="actionLoading"
+                :disabled="loading"
                 class="px-3 py-2 rounded shadow-sm text-sm font-semibold text-gray-950 bg-[#07F468] hover:opacity-90 transition-opacity disabled:opacity-50 tracking-wide uppercase"
-                @click="handleAccept"
+                @click="$emit('accept')"
               >
                 ACCEPT
               </button>
               <button
                 type="button"
-                :disabled="actionLoading"
+                :disabled="loading"
                 class="px-3 py-2 rounded text-sm font-semibold text-[#EE3400] bg-white border border-[#EE3400] hover:bg-[#fff5f2] transition-colors disabled:opacity-50 tracking-wide uppercase shadow-sm"
-                @click="handleDecline"
+                @click="$emit('decline')"
               >
                 DECLINE
               </button>
@@ -149,11 +149,11 @@
             </div>
 
             <!-- Counter offer: fan actions -->
-            <div v-else-if="!loading && !isCreator && currentAction === 'counter_offer'" class="w-full flex items-center flex-wrap gap-x-2 gap-y-3 pt-3">
+            <div v-else-if="!fetchLoading && !isCreator && currentAction === 'counter_offer'" class="w-full flex items-center flex-wrap gap-x-2 gap-y-3 pt-3">
               <!-- <div class="w-full text-sm font-semibold text-[#5549FF] mb-1">Counter offer received</div> -->
               <button
                 type="button"
-                :disabled="actionLoading"
+                :disabled="loading"
                 class="px-3 py-2 rounded shadow-sm text-sm font-semibold text-gray-950 bg-[#07F468] hover:opacity-90 transition-opacity disabled:opacity-50 tracking-wide uppercase"
                 @click="$emit('confirm-counter')"
               >
@@ -161,7 +161,7 @@
               </button>
               <button
                 type="button"
-                :disabled="actionLoading"
+                :disabled="loading"
                 class="px-3 py-2 rounded text-sm font-semibold text-[#EE3400] bg-white border border-[#EE3400] hover:bg-[#fff5f2] transition-colors disabled:opacity-50 tracking-wide uppercase shadow-sm"
                 @click="$emit('cancel-booking')"
               >
@@ -170,7 +170,7 @@
             </div>
 
             <!-- Creator + counter_offer: waiting -->
-            <div v-else-if="!loading && isCreator && currentAction === 'counter_offer'" class="pt-1">
+            <div v-else-if="!fetchLoading && isCreator && currentAction === 'counter_offer'" class="pt-1">
               <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold bg-gray-100 text-gray-500">
                 <img :src="HourglassIcon" class="w-4 h-4" alt="" />
                 Waiting for fan response
@@ -178,7 +178,7 @@
             </div>
 
             <!-- Accepted / declined badge -->
-            <div v-else-if="!loading && (currentAction === 'accepted' || currentAction === 'declined')" class="pt-1">
+            <div v-else-if="!fetchLoading && (currentAction === 'accepted' || currentAction === 'declined')" class="pt-1">
               <div
                 class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold"
                 :style="currentAction === 'accepted'
@@ -219,15 +219,15 @@ const props = defineProps({
   isCreator:     { type: Boolean, default: false },
   chatId:        { type: String, default: null },
   currentUserId: { type: [String, Number], default: null },
+  loading:       { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['action-complete', 'adjust', 'open-chat', 'close', 'confirm-counter', 'cancel-booking'])
+const emit = defineEmits(['accept', 'decline', 'adjust', 'open-chat', 'close', 'confirm-counter', 'cancel-booking'])
 
 // ── State ────────────────────────────────────────────────────────────────────
-const loading       = ref(true)
+const fetchLoading  = ref(true)
 const fetchError    = ref(null)
 const booking       = ref(props.booking || null)
-const actionLoading = ref(false)
 
 const messageContent = computed(() => props.message?.content || {})
 const currentAction  = ref(messageContent.value.action || 'pending')
@@ -252,14 +252,14 @@ onMounted(async () => {
   const bookingId = messageContent.value.booking_id
   if (!bookingId) {
     fetchError.value = 'No booking ID found.'
-    loading.value = false
+    fetchLoading.value = false
     return
   }
 
   // If pre-fetched booking was passed via prop — show immediately, no spinner
   if (props.booking) {
     applyBookingData(props.booking)
-    loading.value = false
+    fetchLoading.value = false
     // Silently refresh in background to get latest status
     FlowHandler.run('bookings.fetchBooking', { bookingId }).then((res) => {
       if (res?.ok) applyBookingData(res.data?.item || null)
@@ -269,7 +269,7 @@ onMounted(async () => {
 
   // No pre-fetched data — fetch with loading spinner
   const res = await FlowHandler.run('bookings.fetchBooking', { bookingId })
-  loading.value = false
+  fetchLoading.value = false
 
   if (!res?.ok) {
     fetchError.value = res?.error?.message || 'Could not load booking details.'
@@ -392,40 +392,4 @@ const reminderLabel = computed(() => {
   return `${mins} minutes before`
 })
 
-// ── Actions ──────────────────────────────────────────────────────────────────
-async function handleAccept() {
-  if (actionLoading.value) return
-  actionLoading.value = true
-
-  const res = await FlowHandler.run('bookings.reviewPendingBooking', {
-    bookingId: messageContent.value.booking_id,
-    decision:  'approve',
-    actor:     'creator',
-  })
-
-  actionLoading.value = false
-
-  if (res?.ok) {
-    currentAction.value = 'accepted'
-    emit('action-complete', { decision: 'approve', bookingId: messageContent.value.booking_id })
-  }
-}
-
-async function handleDecline() {
-  if (actionLoading.value) return
-  actionLoading.value = true
-
-  const res = await FlowHandler.run('bookings.reviewPendingBooking', {
-    bookingId: messageContent.value.booking_id,
-    decision:  'reject',
-    actor:     'creator',
-  })
-
-  actionLoading.value = false
-
-  if (res?.ok) {
-    currentAction.value = 'declined'
-    emit('action-complete', { decision: 'reject', bookingId: messageContent.value.booking_id })
-  }
-}
 </script>
