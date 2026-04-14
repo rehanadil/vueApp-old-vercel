@@ -382,7 +382,7 @@ const theme1 = computed(() => ({
   main: {
     wrapper: `relative flex flex-col gap-0 overflow-hidden rounded-xl h-full px-2 md:px-4 lg:pl-6 lg:pr-0 pt-6 ${props.embedded ? '' : ''}`,
     title: "sm:text-[1.5rem] text-[16px] font-semibold text-slate-800",
-    xHeader: "text-[11px] uppercase tracking-wide text-slate-500 top-[1px] sticky w-full backdrop-blur-md z-10",
+    xHeader: "text-[11px] uppercase tracking-wide text-slate-500 top-0 sticky w-full backdrop-blur-md z-10",
     axisXLabel: "flex flex-col justify-end pb-[0.75rem] w-[4.875rem]",
     axisXDay: "py-1 text-center h-[63.92px]",
     axisXToday: "bg-gray-500 text-white rounded-full w-8 h-8 flex items-center justify-center",
