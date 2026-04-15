@@ -43,14 +43,14 @@
             :class="[
               view === 'month' ? 'static' : 'absolute',
               event?.isAvailabilityBlock ? 'pointer-events-none' : '',
-              'py-[0.125rem] px-[0.25rem] rounded-[0.375rem] text-xs shadow-custom min-h-[2.375rem]'
+              'py-[0.125rem] px-[0.25rem] rounded-[0.375rem] text-xs shadow-custom min-h-[20px]'
             ]"
             :style="[style, getCalendarEventStyle(event)]"
             @click.stop="!event?.isAvailabilityBlock && onClick(event)"
           >
             <template v-if="!event?.isAvailabilityBlock">
               <div class="flex items-center font-medium truncate">{{ event.title }}</div>
-              <div class="text-[10px]">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</div>
+              <div hidden class="text-[10px]">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</div>
             </template>
           </div>
         </template>
@@ -77,14 +77,14 @@
             :class="[
               view === 'month' ? 'static' : 'absolute',
               event?.isAvailabilityBlock ? 'pointer-events-none' : '',
-              'py-[0.125rem] px-[0.25rem] rounded-lg text-xs shadow-md min-h-[38px]'
+              'py-[0.125rem] px-[0.25rem] rounded-lg text-xs shadow-md min-h-[20px]'
             ]"
             :style="[style, getCalendarEventStyle(event)]"
             @click.stop="!event?.isAvailabilityBlock && onClick(event)"
           >
             <template v-if="!event?.isAvailabilityBlock">
               <div class="font-semibold truncate">{{ event.title }}</div>
-              <div class="opacity-90 text-[10px]">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</div>
+              <div hidden class="opacity-90 text-[10px]">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</div>
             </template>
           </div>
         </template>
