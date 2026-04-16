@@ -99,11 +99,11 @@ onMounted(() => {
 
 <template>
   <!-- overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] -->
-  <div class="relative w-full h-full md:h-auto max-w-[27rem] min-h-0 rounded-[10px] ">
+  <div class="relative w-full h-full md:h-auto max-w-[27rem] min-h-0 md:rounded-[10px] ">
 
-      <div class="backdrop-blur-[1rem] rounded-[10px] h-full md:h-auto flex flex-col" :style="successBackgroundStyle">
+      <div class="backdrop-blur-[1rem] md:rounded-[10px] h-full md:h-auto flex flex-col" :style="successBackgroundStyle">
 
-          <div class="flex-1 p-6 bg-[#00000080] backdrop-blur-[10px] flex flex-col justify-center items-center gap-6 rounded-tl-[10px] rounded-tr-[10px]">
+          <div class="flex-1 p-6 bg-[#00000080] backdrop-blur-[10px] flex flex-col justify-center items-center gap-6 md:rounded-tl-[10px] md:rounded-tr-[10px]">
             <div class="flex flex-col justify-center items-center gap-6">
               <img class="w-36 h-36" :src="bookingFlowPendingIcon" alt="" />
               <div class="flex flex-col justify-start items-start gap-2">
@@ -113,7 +113,7 @@ onMounted(() => {
             </div>
           </div>
 
-          <div class="flex-1 w-full p-4 bg-cyan-400/20 rounded-bl-[10px] rounded-br-[10px] backdrop-blur-[5px] flex flex-col justify-between items-start">
+          <div class="flex-1 w-full p-4 bg-cyan-400/20 md:rounded-bl-[10px] md:rounded-br-[10px] backdrop-blur-[5px] flex flex-col justify-between items-start">
             <div class="flex flex-col justify-start items-center gap-2 w-full">
               <div class="flex flex-col justify-start items-center gap-4">
                 <div class="flex flex-col justify-start items-center gap-2 w-full">
