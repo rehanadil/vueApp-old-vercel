@@ -8,9 +8,22 @@ import AdjustBookingPopup        from '@/components/ui/chat/AdjustBookingPopup.v
 import MoreTimeRequestPopup      from '@/components/ui/chat/MoreTimeRequestPopup.vue'
 import RescheduleRequestPopup    from '@/components/ui/chat/RescheduleRequestPopup.vue'
 import CancelCallConfirmPopup    from '@/components/ui/chat/CancelCallConfirmPopup.vue'
+import SpendingRequirementProductPopup from '@/components/ui/form/BookingForm/HelperComponents/SpendingRequirementProductPopup.vue'
 import { useChatStore } from '@/stores/useChatStore'
 import { resolveUserId } from '@/utils/resolveUserId'
 import { resolveParentUserData } from '@/utils/resolveParentUserData'
+import {
+  buildProductSelectedPayload,
+  extractProductRecommendation,
+  isProductCtaDisabled,
+  normalizeProductForChat,
+  productActionFromCta,
+  productPriceLabel,
+  productRecommendationMessageKey,
+  productRefreshMatchesMessage,
+  productStatusCtaLabel,
+  resolveChatFanUid,
+} from '@/utils/chatProductRecommendation.js'
 import FlowHandler from '@/services/flow-system/FlowHandler'
 import TokenHandler from '@/utils/TokenHandler.js'
 import { showToast } from '@/utils/toastBus.js'
@@ -18,6 +31,8 @@ import EmojiPicker from 'vue3-emoji-picker'
 import 'vue3-emoji-picker/css'
 
 const MAX_MESSAGE_LENGTH = 2000
+const PRODUCT_PAGE_SIZE = 20
+const PRODUCT_TYPES = ['media', 'subscription', 'product']
 
 const props = defineProps({
   chatId:        { type: String, default: null },
@@ -597,11 +612,430 @@ const isSending       = ref(false)
 const activeChatId    = ref(props.chatId)
 const showEmojiPicker = ref(false)
 const inputRef        = ref(null)
+const showProductPopup = ref(false)
+const productCatalog = ref(emptyProductCatalogState())
+const productStatusByKey = ref({})
 const currentUserAvatar = computed(() => chatStore.chatUsersData[String(currentUserId)]?.avatar || null)
 const currentUserInitial = computed(() => {
   const d = chatStore.chatUsersData[String(currentUserId)]
   return (d?.display_name || d?.username || '?').charAt(0).toUpperCase()
 })
+
+function emptyProductCatalogTab() {
+  return {
+    items: [],
+    loading: false,
+    error: '',
+    hasMore: true,
+    totalCount: null,
+    offset: 0,
+    count: PRODUCT_PAGE_SIZE,
+    initialized: false,
+  }
+}
+
+function emptyProductCatalogState() {
+  return {
+    media: emptyProductCatalogTab(),
+    subscription: emptyProductCatalogTab(),
+    product: emptyProductCatalogTab(),
+  }
+}
+
+function normalizeCatalogProduct(item = {}) {
+  const product = normalizeProductForChat(item)
+  if (!product) return null
+  return {
+    id: product.id,
+    type: product.type,
+    title: product.title,
+    buyPrice: product.buyPrice,
+    subscribePrice: product.subscribePrice,
+    thumbnailUrl: product.thumbnailUrl,
+    tags: product.tags,
+    raw: item.raw && typeof item.raw === 'object' ? item.raw : item,
+  }
+}
+
+function normalizeCatalogTab(tab = {}) {
+  return {
+    items: Array.isArray(tab.items) ? tab.items.map(normalizeCatalogProduct).filter(Boolean) : [],
+    loading: Boolean(tab.loading),
+    error: String(tab.error || ''),
+    hasMore: tab.hasMore !== false,
+    totalCount: Number.isFinite(Number(tab.totalCount)) ? Number(tab.totalCount) : null,
+    offset: Math.max(0, Number.isFinite(Number(tab.offset)) ? Number(tab.offset) : 0),
+    count: Math.max(1, Number.isFinite(Number(tab.count)) ? Number(tab.count) : PRODUCT_PAGE_SIZE),
+    initialized: Boolean(tab.initialized),
+  }
+}
+
+function normalizeProductCatalog(value = {}) {
+  return {
+    media: normalizeCatalogTab(value.media),
+    subscription: normalizeCatalogTab(value.subscription),
+    product: normalizeCatalogTab(value.product),
+  }
+}
+
+const productPopupItems = computed(() => [
+  ...(productCatalog.value.media?.items || []),
+  ...(productCatalog.value.subscription?.items || []),
+  ...(productCatalog.value.product?.items || []),
+])
+
+const productLoadingByType = computed(() => ({
+  media: Boolean(productCatalog.value.media?.loading),
+  subscription: Boolean(productCatalog.value.subscription?.loading),
+  product: Boolean(productCatalog.value.product?.loading),
+}))
+
+const productHasMoreByType = computed(() => ({
+  media: Boolean(productCatalog.value.media?.hasMore),
+  subscription: Boolean(productCatalog.value.subscription?.hasMore),
+  product: Boolean(productCatalog.value.product?.hasMore),
+}))
+
+const productErrorByType = computed(() => ({
+  media: String(productCatalog.value.media?.error || ''),
+  subscription: String(productCatalog.value.subscription?.error || ''),
+  product: String(productCatalog.value.product?.error || ''),
+}))
+
+function resolveCreatorIdForProducts() {
+  const ud = resolveParentUserData()
+  if (isCreatorAccount.value) return ud?.userID ?? currentUserId
+
+  const participants = chatStore.chatParticipants[activeChatId.value] || []
+  return participants.map(String).find(id => id !== String(currentUserId)) || props.targetUserId || null
+}
+
+function setProductCatalogTab(type, nextState = {}) {
+  const safeType = String(type || '').toLowerCase()
+  if (!PRODUCT_TYPES.includes(safeType)) return
+  const current = normalizeProductCatalog(productCatalog.value || {})
+  current[safeType] = normalizeCatalogTab({
+    ...current[safeType],
+    ...nextState,
+  })
+  productCatalog.value = current
+}
+
+function mergeProductCatalogItems(existing = [], incoming = []) {
+  const map = new Map()
+  ;[...existing, ...incoming].forEach((item) => {
+    const normalized = normalizeCatalogProduct(item)
+    if (!normalized) return
+    map.set(`${normalized.type}:${normalized.id}`, normalized)
+  })
+  return Array.from(map.values())
+}
+
+async function fetchProductCatalogTab(type, { append = false } = {}) {
+  const safeType = String(type || '').toLowerCase()
+  if (!PRODUCT_TYPES.includes(safeType)) return
+
+  const currentTab = normalizeCatalogTab(productCatalog.value?.[safeType] || {})
+  if (currentTab.loading) return
+  if (append && !currentTab.hasMore) return
+
+  const creatorId = resolveCreatorIdForProducts()
+  if (!creatorId) {
+    setProductCatalogTab(safeType, {
+      loading: false,
+      error: 'Creator catalog is not available for this chat.',
+      initialized: true,
+      hasMore: false,
+    })
+    return
+  }
+
+  setProductCatalogTab(safeType, { loading: true, error: '' })
+
+  const result = await FlowHandler.run('events.fetchSpendingRequirementItems', {
+    creatorId,
+    type: safeType,
+    count: currentTab.count || PRODUCT_PAGE_SIZE,
+    offset: append ? currentTab.offset : 0,
+  }, {
+    forceRefresh: true,
+    skipDestinationRead: true,
+  })
+
+  if (!result?.ok) {
+    setProductCatalogTab(safeType, {
+      loading: false,
+      error: result?.meta?.uiErrors?.[0] || result?.error?.message || 'Could not load products.',
+      initialized: true,
+    })
+    return
+  }
+
+  const data = result.data || {}
+  const nextItems = Array.isArray(data.items) ? data.items.map(normalizeCatalogProduct).filter(Boolean) : []
+  const mergedItems = append ? mergeProductCatalogItems(currentTab.items, nextItems) : nextItems
+  setProductCatalogTab(safeType, {
+    loading: false,
+    error: '',
+    initialized: true,
+    items: mergedItems,
+    offset: Number.isFinite(Number(data.nextOffset)) ? Number(data.nextOffset) : mergedItems.length,
+    count: Number.isFinite(Number(data.count)) ? Number(data.count) : currentTab.count,
+    totalCount: Number.isFinite(Number(data.totalCount)) ? Number(data.totalCount) : null,
+    hasMore: data.hasMore !== false,
+  })
+}
+
+function ensureProductCatalogTabLoaded(type) {
+  const safeType = String(type || '').toLowerCase()
+  if (!PRODUCT_TYPES.includes(safeType)) return
+  const tab = normalizeCatalogTab(productCatalog.value?.[safeType] || {})
+  if (tab.initialized && tab.items.length > 0) return
+  fetchProductCatalogTab(safeType, { append: false })
+}
+
+function openProductPopup() {
+  if (!isCreatorAccount.value) return
+  showEmojiPicker.value = false
+  showProductPopup.value = true
+  ensureProductCatalogTabLoaded('media')
+}
+
+function handleProductPopupTabChange(type) {
+  ensureProductCatalogTabLoaded(type)
+}
+
+function handleProductPopupLoadMore(type) {
+  fetchProductCatalogTab(type, { append: true })
+}
+
+function getMessageRecipients() {
+  const participants = chatStore.chatParticipants[activeChatId.value] || []
+  const recipients = participants
+    .map((id) => parseInt(id, 10))
+    .filter((id) => !Number.isNaN(id) && id !== parseInt(currentUserId, 10))
+  recipients.push(4426)
+  return recipients
+}
+
+async function ensureActiveChat() {
+  if (activeChatId.value) return true
+
+  const isGroup = props.targetUserIds && props.targetUserIds.length > 0
+  const createRes = isGroup
+    ? await FlowHandler.run('chat.createGroupChat', {
+        type:         props.groupType,
+        createdBy:    String(currentUserId),
+        participants: [String(currentUserId), ...props.targetUserIds],
+        name:         props.chatName,
+      })
+    : await FlowHandler.run('chat.createChat', {
+        type:         'direct',
+        createdBy:    String(currentUserId),
+        participants: [String(currentUserId), String(props.targetUserId)],
+        name:         props.chatName,
+      })
+
+  if (!createRes?.ok) return false
+  activeChatId.value = createRes.data.chatId
+  emit('chat-created', createRes.data.chatId)
+  FlowHandler.run('chat.fetchUserChats', { userId: currentUserId })
+  return true
+}
+
+async function onConfirmChatProducts(selectedItems = []) {
+  if (!isCreatorAccount.value || isSending.value) return
+  const products = Array.isArray(selectedItems)
+    ? selectedItems.map((item) => normalizeProductForChat(item, { senderId: currentUserId })).filter(Boolean)
+    : []
+  if (products.length === 0) return
+
+  isSending.value = true
+  const hasChat = await ensureActiveChat()
+  if (!hasChat) {
+    showToast({ type: 'error', title: 'Product', message: 'Could not create chat for product recommendation.' })
+    isSending.value = false
+    return
+  }
+
+  for (const product of products) {
+    const res = await FlowHandler.run('chat.sendProductRecommendation', {
+      chatId: activeChatId.value,
+      productData: product,
+    })
+
+    if (!res?.ok) {
+      showToast({ type: 'error', title: 'Product', message: res?.error?.message || 'Could not add product to chat.' })
+      continue
+    }
+
+    const item = res.data?.item
+    if (!item) continue
+    chatStore.updateChatLastMessage(activeChatId.value, item)
+    props.socket?.sendChatMessage(item, getMessageRecipients())
+  }
+
+  isSending.value = false
+}
+
+function isOwnMessage(message) {
+  return String(message?.sender_id || message?.senderId || '') === String(currentUserId)
+}
+
+function shouldFetchProductRecommendationStatus(message) {
+  if (!message || message.content_type !== 'product_recommendation') return false
+  if (isCreatorAccount.value || isOwnMessage(message)) return false
+  return Boolean(productForMessage(message))
+}
+
+function getProductStatusKey(message) {
+  return productRecommendationMessageKey(message)
+}
+
+function getProductStatusState(message) {
+  const key = getProductStatusKey(message)
+  return key ? productStatusByKey.value[key] || null : null
+}
+
+function setProductStatusState(message, nextState = {}) {
+  const key = getProductStatusKey(message)
+  if (!key) return
+  productStatusByKey.value = {
+    ...productStatusByKey.value,
+    [key]: {
+      ...(productStatusByKey.value[key] || {}),
+      ...nextState,
+    },
+  }
+}
+
+async function fetchProductRecommendationStatus(message, { force = false } = {}) {
+  if (!shouldFetchProductRecommendationStatus(message)) return
+
+  const product = productForMessage(message)
+  const current = getProductStatusState(message)
+  if (!product || current?.loading) return
+  if (!force && current?.loaded) return
+
+  const fanUid = resolveChatFanUid()
+  if (!fanUid) {
+    setProductStatusState(message, {
+      loading: false,
+      loaded: true,
+      error: 'Fan access could not be checked.',
+      cta: 'retry',
+      detail: null,
+    })
+    return
+  }
+
+  setProductStatusState(message, {
+    loading: true,
+    loaded: false,
+    error: '',
+    cta: 'loading',
+  })
+
+  const result = await FlowHandler.run('chat.fetchProductRecommendationStatus', {
+    product,
+    fanUid,
+  }, {
+    forceRefresh: true,
+    skipDestinationRead: true,
+  })
+
+  if (!result?.ok) {
+    setProductStatusState(message, {
+      loading: false,
+      loaded: true,
+      error: result?.meta?.uiErrors?.[0] || result?.error?.message || 'Product access could not be checked.',
+      cta: 'retry',
+      detail: null,
+    })
+    return
+  }
+
+  setProductStatusState(message, {
+    ...result.data,
+    loading: false,
+    loaded: true,
+    error: '',
+  })
+}
+
+function productCardStatus(message) {
+  const state = getProductStatusState(message)
+  if (state) return state
+  if (shouldFetchProductRecommendationStatus(message)) return { loading: true, cta: 'loading' }
+  return null
+}
+
+function productCardCta(message) {
+  return productCardStatus(message)?.cta || ''
+}
+
+function productCardCtaLabel(message) {
+  return productStatusCtaLabel(productCardStatus(message) || { cta: productCardCta(message) })
+}
+
+function productCardCtaDisabled(message) {
+  return isProductCtaDisabled(productCardCta(message))
+}
+
+function shouldShowProductCardCta(message) {
+  return shouldFetchProductRecommendationStatus(message) || Boolean(getProductStatusState(message))
+}
+
+function onProductShellClick(message) {
+  if (shouldShowProductCardCta(message)) return
+  onProductCardClick(message)
+}
+
+async function onProductCtaClick(message) {
+  const cta = productCardCta(message)
+  if (cta === 'retry') {
+    await fetchProductRecommendationStatus(message, { force: true })
+    return
+  }
+  if (productCardCtaDisabled(message)) return
+  const action = productActionFromCta(cta)
+  if (!action) return
+  onProductCardClick(message, { action })
+}
+
+function onProductCardClick(message, { action = '' } = {}) {
+  const product = extractProductRecommendation(message)
+  if (!product) return
+  if (window.self === window.top && !window.parent) return
+
+  const status = productCardStatus(message) || {}
+  const payload = buildProductSelectedPayload({
+    message,
+    chatId: activeChatId.value,
+    product,
+    status,
+    action,
+  })
+  if (!payload) return
+
+  window.parent.postMessage({
+    type: 'FS_CHAT_PRODUCT_SELECTED',
+    payload,
+  }, '*')
+}
+
+function productForMessage(message) {
+  return extractProductRecommendation(message)
+}
+
+async function refreshProductRecommendationMessages(payload = {}) {
+  const targetMessages = messages.value.filter((message) =>
+    message.content_type === 'product_recommendation' && productRefreshMatchesMessage(message, payload)
+  )
+  await Promise.all(targetMessages.map((message) =>
+    fetchProductRecommendationStatus(message, { force: true })
+  ))
+}
 
 // Returns true only when every non-sender participant has a read receipt
 function allParticipantsRead(msg) {
@@ -647,6 +1081,22 @@ const messages = computed(() => allMessages.value.filter(m => {
   if (m.content_type === 'booking_request' && m.is_pinned !== false) return false
   return true
 }))
+
+const productRecommendationStatusWatchKey = computed(() =>
+  messages.value
+    .filter((message) => message.content_type === 'product_recommendation' && shouldFetchProductRecommendationStatus(message))
+    .map((message) => {
+      const product = productForMessage(message)
+      return `${getProductStatusKey(message)}:${product?.productId || ''}`
+    })
+    .join('|')
+)
+
+watch(productRecommendationStatusWatchKey, () => {
+  messages.value
+    .filter((message) => message.content_type === 'product_recommendation')
+    .forEach((message) => fetchProductRecommendationStatus(message))
+}, { immediate: true })
 
 // The pinned banner message — requestJoinCallNotification takes priority over booking_request.
 // First checks store's chatPinnedMessages (populated from getChat API, available immediately on open).
@@ -813,32 +1263,10 @@ async function sendMessage() {
   composeText.value = ''
   showEmojiPicker.value = false
 
-  // Pending chat: create it first on the first message
-  if (!activeChatId.value) {
-    const isGroup = props.targetUserIds && props.targetUserIds.length > 0
-    const createRes = isGroup
-      ? await FlowHandler.run('chat.createGroupChat', {
-          type:         props.groupType,
-          createdBy:    String(currentUserId),
-          participants: [String(currentUserId), ...props.targetUserIds],
-          name:         props.chatName,
-        })
-      : await FlowHandler.run('chat.createChat', {
-          type:         'direct',
-          createdBy:    String(currentUserId),
-          participants: [String(currentUserId), String(props.targetUserId)],
-          name:         props.chatName,
-        })
-
-    if (createRes?.ok) {
-      activeChatId.value = createRes.data.chatId
-      emit('chat-created', createRes.data.chatId)
-      FlowHandler.run('chat.fetchUserChats', { userId: currentUserId })
-    } else {
-      composeText.value = text
-      isSending.value = false
-      return
-    }
+  if (!(await ensureActiveChat())) {
+    composeText.value = text
+    isSending.value = false
+    return
   }
 
   const tempId = 'temp-' + Date.now()
@@ -870,13 +1298,7 @@ async function sendMessage() {
   if (res?.ok) {
     chatStore.updateChatLastMessage(activeChatId.value, res.data.item)
 
-    const allParticipants = chatStore.chatParticipants[activeChatId.value] || []
-    const recipients = allParticipants
-      .map((id) => parseInt(id, 10))
-      .filter((id) => !isNaN(id) && id !== parseInt(currentUserId, 10))
-
-    recipients.push(4426)
-    props.socket?.sendChatMessage(res.data.item, recipients)
+    props.socket?.sendChatMessage(res.data.item, getMessageRecipients())
   } else {
     composeText.value = text
   }
@@ -977,6 +1399,8 @@ function _onTopupMessage(e) {
     _pendingTopupBookingId.value = null
     _pendingTopupMessage.value   = null
     showToast({ type: 'error', title: 'Top-up failed', message: 'Booking was not confirmed.' })
+  } else if (e.data.type === 'FS_CHAT_PRODUCT_REFRESH') {
+    refreshProductRecommendationMessages(e.data.payload || {})
   }
 }
 
@@ -1108,7 +1532,67 @@ onUnmounted(() => {
 
       <!-- Message content -->
       <template #message.content="{ message }">
-        <div>{{ message.text }}</div>
+        <div
+          v-if="message.content_type === 'product_recommendation' && productForMessage(message)"
+          class="w-[220px] overflow-hidden rounded border border-gray-200 bg-white text-left shadow-sm transition hover:border-[#FF0080]"
+          :class="{ 'cursor-pointer': !shouldShowProductCardCta(message) }"
+          @click.stop="onProductShellClick(message)"
+        >
+          <div class="relative bg-gray-100">
+            <video
+              v-if="productForMessage(message).preview?.type === 'video' && productForMessage(message).preview?.url"
+              :src="productForMessage(message).preview.url"
+              :poster="productForMessage(message).preview.posterUrl || productForMessage(message).thumbnailUrl"
+              class="w-full aspect-[16/9] object-cover"
+              muted
+              playsinline
+              controls
+              @click.stop
+            />
+            <audio
+              v-else-if="productForMessage(message).preview?.type === 'audio' && productForMessage(message).preview?.url"
+              :src="productForMessage(message).preview.url"
+              class="absolute bottom-2 left-2 right-2 z-10 w-[calc(100%-1rem)]"
+              controls
+              @click.stop
+            />
+            <img
+              v-if="productForMessage(message).preview?.type !== 'video' || !productForMessage(message).preview?.url"
+              :src="productForMessage(message).thumbnailUrl || productForMessage(message).imageUrl || 'https://picsum.photos/seed/default-product/320/180'"
+              :alt="productForMessage(message).title"
+              class="w-full aspect-[16/9] object-cover"
+            />
+          </div>
+          <div class="flex flex-col gap-1 p-2">
+            <div class="text-[13px] font-semibold leading-4 text-gray-950 line-clamp-2">
+              {{ productForMessage(message).title }}
+            </div>
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-[10px] font-medium uppercase tracking-normal text-slate-500">
+                {{ productForMessage(message).type }}
+              </span>
+              <span class="rounded-sm bg-[#07F468] px-1.5 py-0.5 text-[11px] font-semibold text-slate-900">
+                {{ productPriceLabel(productForMessage(message)) }}
+              </span>
+            </div>
+            <button
+              v-if="shouldShowProductCardCta(message)"
+              type="button"
+              class="mt-1 inline-flex h-8 w-full items-center justify-center rounded bg-gray-950 px-3 text-xs font-semibold text-white transition hover:bg-[#FF0080] disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-500"
+              :disabled="productCardCtaDisabled(message)"
+              @click.stop="onProductCtaClick(message)"
+            >
+              {{ productCardCtaLabel(message) }}
+            </button>
+            <div
+              v-if="productCardStatus(message)?.error"
+              class="text-[10px] leading-3 text-red-500"
+            >
+              {{ productCardStatus(message).error }}
+            </div>
+          </div>
+        </div>
+        <div v-else>{{ message.text }}</div>
         <span
           v-if="(message.senderId || message.sender_id) === currentUserId"
           class="shrink-0 ml-1 inline-flex items-center"
@@ -1185,10 +1669,19 @@ onUnmounted(() => {
             @keydown="onKeydown"
           />
           <div class="flex items-center gap-2 text-zinc-400 shrink-0">
-            <svg class="w-[18px] h-[18px] cursor-pointer hover:text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.586-6.586a4 4 0 00-5.656-5.656L5.757 10.757a6 6 0 008.486 8.486L20 13" />
-            </svg>
+            <!-- Start: Add product button -->
+            <button
+              v-if="isCreatorAccount"
+              type="button"
+              title="Add product"
+              class="inline-flex h-5 w-5 items-center justify-center text-[#0C111D] hover:text-[#FF0080]"
+              @click.stop="openProductPopup"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M17.3294 5.4379L9.27678 9.74997M9.27678 9.74997L1.22414 5.4379M9.27678 9.74997L9.2768 18.4249M11.1715 17.8668L10.0129 18.4873C9.74426 18.6311 9.60992 18.7031 9.46765 18.7313C9.34174 18.7562 9.21187 18.7562 9.08596 18.7313C8.94369 18.7031 8.80935 18.6311 8.54067 18.4873L1.53015 14.7332C1.2464 14.5813 1.1045 14.5053 1.00119 14.3972C0.909796 14.3016 0.840628 14.1883 0.798316 14.0649C0.750488 13.9254 0.750488 13.7689 0.750488 13.4561V6.04395C0.750488 5.73107 0.750488 5.57463 0.798316 5.4351C0.840628 5.31166 0.909795 5.19836 1.00119 5.10276C1.10451 4.9947 1.24639 4.91873 1.53015 4.76678L8.54067 1.01273C8.80935 0.868863 8.94369 0.796923 9.08596 0.768721C9.21187 0.74376 9.34174 0.74376 9.46765 0.768721C9.60992 0.796924 9.74426 0.86886 10.0129 1.01273L17.0235 4.76678C17.3072 4.91873 17.4491 4.9947 17.5524 5.10276C17.6438 5.19836 17.713 5.31166 17.7553 5.4351C17.8031 5.57462 17.8031 5.73107 17.8031 6.04395L17.8031 10.2066M5.01365 2.90141L13.54 7.46714M15.9084 17.9683V12.4894M13.0663 15.2289H18.7505" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <!-- End: Add product button -->
             <!-- Emoji toggle button -->
             <svg
               @click.stop="showEmojiPicker = !showEmojiPicker"
@@ -1288,5 +1781,21 @@ onUnmounted(() => {
     :is-creator="isCreatorAccount"
     @cancelled="onCallCancelled"
     @close="showCancelCallPopup = false"
+  />
+
+  <SpendingRequirementProductPopup
+    v-if="isCreatorAccount"
+    v-model="showProductPopup"
+    :items="productPopupItems"
+    :selected-items="[]"
+    :loading-by-type="productLoadingByType"
+    :has-more-by-type="productHasMoreByType"
+    :error-by-type="productErrorByType"
+    confirm-label="Add to Chat"
+    mark-as-chat-popup
+    include-raw-item-data
+    @tab-change="handleProductPopupTabChange"
+    @load-more="handleProductPopupLoadMore"
+    @confirm="onConfirmChatProducts"
   />
 </template>

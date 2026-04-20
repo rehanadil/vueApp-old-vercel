@@ -37,6 +37,13 @@ if (apiBase) {
   window.__fsChatApiBaseUrl = apiBase
 }
 
+const fanUid = params.get('fanUid')
+if (fanUid) {
+  if (!window.userData) window.userData = {}
+  window.userData.fanUid = fanUid
+  window.__fsChatFanUid = fanUid
+}
+
 window.__fsChatEmbed = true
 
 function scheduleResize(el, delay = 30) {
