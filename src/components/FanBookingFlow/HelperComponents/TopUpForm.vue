@@ -38,7 +38,7 @@ const props = defineProps({
   creatorId:    { type: Number, default: 0 },
 });
 
-const emit = defineEmits(['back', 'success', 'payment-failed']);
+const emit = defineEmits(['back', 'success', 'payment-failed', 'auth-updated']);
 
 const AMOUNT_PRESETS = [500, 1000, 3000, 5000];
 
@@ -97,6 +97,30 @@ function resolveFanUserId() {
 }
 function resolveCreatorId() {
   return props.creatorId || 0;
+}
+
+function normalizeAuthPayload(response = {}) {
+  const userId = response?.user_id
+    ?? response?.userId
+    ?? response?.userData?.userID
+    ?? response?.userData?.user_id
+    ?? response?.data?.user_id
+    ?? response?.data?.userId
+    ?? null;
+  const backendJwtToken = response?.backendJwtToken
+    ?? response?.jwtToken
+    ?? response?.backend_jwt_token
+    ?? response?.jwt_token
+    ?? response?.token
+    ?? response?.data?.backendJwtToken
+    ?? response?.data?.jwtToken
+    ?? '';
+
+  return {
+    userId,
+    backendJwtToken,
+    response,
+  };
 }
 
 // Dev helper — patch window.userData from localStorage so guest form reflects logged-in state.
@@ -227,7 +251,7 @@ function handlePaymentSuccess(_response) {
     || 
     (_response?.order_status && ( _response.order_status == 'completed' || _response.order_status == 'processing' )) 
   ) {
-    emit('success', { userId: _response.user_id || null });
+    emit('success', normalizeAuthPayload(_response));
 
     // guestCheckout.checkGuestAuthAfterPayment
     // guestCheckouth 
@@ -304,8 +328,9 @@ async function reloadCardForm(res = null) {
   isFormLoading.value   = true;
   console.error('[TopUpForm] Reloading card form with params:', { selectedAmount: selectedAmount.value, existingOrderId, res });
   try {
-    res.order_id = res.order_id || existingOrderId; // Ensure order_id is passed to renderForm for proper recovery
-    const { orderId } = await handler.renderForm(selectedAmount.value, existingOrderId, 'token', res);
+    const responseArgs = res ? { ...res } : {};
+    responseArgs.order_id = responseArgs.order_id || existingOrderId; // Ensure order_id is passed to renderForm for proper recovery
+    const { orderId } = await handler.renderForm(selectedAmount.value, existingOrderId, 'token', responseArgs);
     currentOrderId.value = orderId ?? null;
     cardFormRef.value?.syncSavedCards();
   } catch (err) {
@@ -314,6 +339,16 @@ async function reloadCardForm(res = null) {
   } finally {
     isFormLoading.value = false;
   }
+}
+
+async function handleGuestLogin(res = null) {
+  emit('auth-updated', normalizeAuthPayload(res || {}));
+  await reloadCardForm(res);
+}
+
+async function handleGuestLogout(res = null) {
+  emit('auth-updated', { userId: 0, backendJwtToken: '', response: res || {} });
+  await reloadCardForm(res);
 }
 
 defineExpose({
@@ -405,8 +440,8 @@ onBeforeUnmount(() => {
         :initial-email="billingEmail"
         :order-id="currentOrderId"
         @update:email="billingEmail = $event"
-        @login="reloadCardForm"
-        @logout="reloadCardForm"
+        @login="handleGuestLogin"
+        @logout="handleGuestLogout"
       />
 
       <!-- Payment method -->
