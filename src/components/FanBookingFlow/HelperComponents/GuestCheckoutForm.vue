@@ -9,7 +9,7 @@ const props = defineProps({
 const emit = defineEmits(['update:email', 'login', 'logout']);
 
 const parentUserData  = window?.userData || window?.parent?.userData || null;
-const guestSection    = ref(Boolean(parentUserData?.userID) ? 'loggedin' : 'guest-register');
+const guestSection    = ref((Number(parentUserData?.userID) && Number(parentUserData?.userID) > 0) ? 'loggedin' : 'guest-register');
 const userData        = ref(parentUserData);
 const userExists      = ref(false);
 const guestEmail      = ref(props.initialEmail || window?.custom_checkout_params?.user?.email);

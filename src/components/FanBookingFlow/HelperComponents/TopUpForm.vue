@@ -83,7 +83,7 @@ const discountPercentage = computed(() => activeTier.value?.discount_percentage 
 const balanceAfterTopUp   = computed(() => props.walletBalance + selectedAmount.value);
 const balanceAfterBooking = computed(() => balanceAfterTopUp.value - props.totalPrice);
 
-const isLoggedIn = computed(() => Boolean(window?.userData?.userID));
+const isLoggedIn = computed(() => Number(window?.userData?.userID) > 0 );
 
 const hasEmail  = computed(() => isLoggedIn.value || billingEmail.value?.trim().includes('@'));
 const canSubmit = computed(() =>
@@ -205,7 +205,7 @@ async function initHandler() {
   if (email) {
     billingEmail.value = email;
     if (window?.custom_checkout_params?.userData) {
-      if (!window?.userData.userID || window?.userData.userID && window?.userData.userID != window?.custom_checkout_params?.userData.userID) {
+      if ( !isLoggedIn.value || window?.userData.userID && window?.userData.userID != window?.custom_checkout_params?.userData.userID) {
         window.userData = window.custom_checkout_params.userData; // Ensure global userData is updated for consistency across components, especially GuestCheckoutForm
       }
     }
@@ -268,7 +268,7 @@ function handlePaymentSuccess(_response) {
 
     // guestCheckout.checkGuestAuthAfterPayment
     // guestCheckouth 
-    if( !window?.userData.userID && window?.parent?.guestCheckout ) {
+    if( !isLoggedIn.value && window?.parent?.guestCheckout ) {
       window.parent.preventReloadOnCheckoutClose = true;
       window.parent.guestCheckout.checkGuestAuthAfterPayment( _response.order_id );
     }
