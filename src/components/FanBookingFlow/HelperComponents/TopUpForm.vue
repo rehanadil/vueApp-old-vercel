@@ -85,7 +85,7 @@ const balanceAfterBooking = computed(() => balanceAfterTopUp.value - props.total
 
 const isLoggedIn = computed(() => Boolean(window?.userData?.userID));
 
-const hasEmail  = computed(() => isLoggedIn.value || billingEmail.value.trim().includes('@'));
+const hasEmail  = computed(() => isLoggedIn.value || billingEmail.value?.trim().includes('@'));
 const canSubmit = computed(() =>
   !isFormLoading.value && !isProcessing.value && hasEmail.value
   && !guestFormRef.value?.requiresLogin
@@ -199,6 +199,19 @@ async function initHandler() {
 
   await handler.ready;
   pricingConfig.value = handler.tip_checkout_params?.config || null;
+
+  // const email = handler.userInfo?.email || handler.userInfo?.user_email || '';
+  const email = window.custom_checkout_params?.user?.email || '';
+  if (email) {
+    billingEmail.value = email;
+    if (window?.custom_checkout_params?.userData) {
+      if (!window?.userData.userID || window?.userData.userID && window?.userData.userID != window?.custom_checkout_params?.userData.userID) {
+        window.userData = window.custom_checkout_params.userData; // Ensure global userData is updated for consistency across components, especially GuestCheckoutForm
+      }
+    }
+  }
+  console.log('[TopUpForm] Handler ready with user info:', handler.userInfo, email);
+
 }
 
 async function selectAmount(amount) {
@@ -255,7 +268,7 @@ function handlePaymentSuccess(_response) {
 
     // guestCheckout.checkGuestAuthAfterPayment
     // guestCheckouth 
-    if( window?.parent?.guestCheckout ) {
+    if( !window?.userData.userID && window?.parent?.guestCheckout ) {
       window.parent.preventReloadOnCheckoutClose = true;
       window.parent.guestCheckout.checkGuestAuthAfterPayment( _response.order_id );
     }

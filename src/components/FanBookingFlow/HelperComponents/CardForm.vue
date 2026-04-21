@@ -13,6 +13,7 @@ const emit = defineEmits(['order-id-updated']);
 
 const paymentContainer    = ref(null);
 const dropdownContainer   = ref(null);
+const changeCardBtn       = ref(null);
 const isProcessingPayment = ref(false); // TODO: set false after spinner design confirmed
 
 // Card validity (used when paymentMethod === 'new_card')
@@ -170,7 +171,10 @@ async function handleDeleteCard(tokenId) {
 }
 
 function handleClickOutside(event) {
-  if (dropdownContainer.value && !dropdownContainer.value.contains(event.target)) {
+  if (
+    dropdownContainer.value && !dropdownContainer.value.contains(event.target) &&
+    changeCardBtn.value    && !changeCardBtn.value.contains(event.target)
+  ) {
     showCardList.value = false;
   }
 }
@@ -217,6 +221,7 @@ defineExpose({
       </div>
       <button
         v-if="savedCards.length > 0"
+        ref="changeCardBtn"
         type="button"
         @click="showCardList = !showCardList"
         class="inline-flex items-center gap-1 text-xs text-[#22CCEE] cursor-pointer select-none"

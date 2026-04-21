@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, computed } from 'vue';
+import { ref, watch, computed, nextTick } from 'vue';
 
 const props = defineProps({
   initialEmail: { type: String, default: '' },
@@ -21,10 +21,21 @@ const isSendingReset  = ref(false);
 const resetSent       = ref(false);
 const guestError      = ref('');
 let emailDebounceTimer = null;
+let settingFromProp = false;
 
 watch(guestEmail, () => {
+  if (settingFromProp) return;
   userExists.value = false;
   debouncedCheckEmail();
+});
+
+watch(() => props.initialEmail, (newVal) => {
+  if (newVal && !guestEmail.value) {
+    settingFromProp = true;
+    guestEmail.value = newVal;
+    emit('update:email', newVal);
+    nextTick(() => { settingFromProp = false; });
+  }
 });
 
 async function checkEmail(email) {
