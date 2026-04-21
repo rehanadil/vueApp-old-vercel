@@ -103,6 +103,9 @@ function getLastMessageText(chat) {
   if (contentType === 'requestJoinCallNotification') {
     return 'Session starting soon'
   }
+  if (contentType === 'product_recommendation') {
+    return 'Product recommendation'
+  }
   // if (contentType === 'booking_request') {
   //   return 'Booking request'
   // }

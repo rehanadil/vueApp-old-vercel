@@ -34,7 +34,8 @@ describe("fetchSpendingRequirementItemsFlow", () => {
     expect(result.ok).toBe(true);
     expect(apiGet).toHaveBeenCalledTimes(1);
     const [url, options] = apiGet.mock.calls[0];
-    expect(url).toBe("https://fansocial.app/wp-json/api/subscriptions/plans/list");
+    const expectedBaseUrl = import.meta.env.VITE_WEB_BASE_URL || window.location.origin;
+    expect(url).toBe(`${expectedBaseUrl.replace(/\/+$/, "")}/wp-json/api/subscriptions/plans/list`);
     expect(url).not.toContain("/undefined/");
     expect(url).not.toContain("/null/");
     expect(options).toEqual(expect.objectContaining({

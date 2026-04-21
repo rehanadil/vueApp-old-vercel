@@ -8,6 +8,8 @@ import { createGroupChatFlow } from "@/services/chat/flows/createGroupChatFlow.j
 import { addChatParticipantFlow } from "@/services/chat/flows/addChatParticipantFlow.js";
 import { fetchGroupUserIdsFlow } from "@/services/chat/flows/fetchGroupUserIdsFlow.js";
 import { sendMessageFlow } from "@/services/chat/flows/sendMessageFlow.js";
+import { sendProductRecommendationFlow } from "@/services/chat/flows/sendProductRecommendationFlow.js";
+import { fetchProductRecommendationStatusFlow } from "@/services/chat/flows/fetchProductRecommendationStatusFlow.js";
 import { fetchMessagesFlow } from "@/services/chat/flows/fetchMessagesFlow.js";
 import { fetchUserChatsFlow } from "@/services/chat/flows/fetchUserChatsFlow.js";
 import { fetchChatUsersDataFlow } from "@/services/chat/flows/fetchChatUsersDataFlow.js";
@@ -745,6 +747,35 @@ export const flowRegistry = {
       uiErrorMap: {
         SEND_MESSAGE_MISSING_CHAT_ID: "Chat ID is missing.",
         SEND_MESSAGE_FAILED: "Message could not be sent.",
+      },
+    },
+  },
+  "chat.sendProductRecommendation": {
+    flowKind: "write",
+    flow: sendProductRecommendationFlow,
+    pipeline: {
+      timeouts: { requestMs: 15000, totalFlowMs: 20000 },
+      retry: { enabled: true, maxAttempts: 2, baseDelayMs: 500, maxDelayMs: 2500, jitterRatio: 0.2 },
+      concurrency: { policy: "allowParallel", dedupe: false, keyByPayload: true },
+      destinations: [
+        { type: "piniaAction", storeId: "chat", action: "addMessageAction" },
+      ],
+      uiErrorMap: {
+        SEND_PRODUCT_RECOMMENDATION_MISSING_FIELDS: "Product details are missing.",
+        SEND_PRODUCT_RECOMMENDATION_FAILED: "Product could not be added to chat.",
+      },
+    },
+  },
+  "chat.fetchProductRecommendationStatus": {
+    flowKind: "read",
+    flow: fetchProductRecommendationStatusFlow,
+    pipeline: {
+      timeouts: { requestMs: 12000, totalFlowMs: 16000 },
+      retry: { enabled: true, maxAttempts: 1, baseDelayMs: 250, maxDelayMs: 1000, jitterRatio: 0.1 },
+      concurrency: { policy: "latestWins", dedupe: true, keyByPayload: true },
+      uiErrorMap: {
+        FETCH_PRODUCT_RECOMMENDATION_STATUS_MISSING_FAN_UID: "Fan access could not be checked.",
+        FETCH_PRODUCT_RECOMMENDATION_STATUS_FAILED: "Product access could not be checked.",
       },
     },
   },
