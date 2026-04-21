@@ -657,6 +657,45 @@ function makeAvatar(event) {
   }];
 }
 
+function firstDefined(...values) {
+  return values.find((value) => value !== undefined && value !== null);
+}
+
+function getJoinOptionsFromEvent(event = {}) {
+  const raw = event?.raw && typeof event.raw === "object" ? event.raw : {};
+  const eventCurrent = raw.eventCurrent && typeof raw.eventCurrent === "object" ? raw.eventCurrent : {};
+  const eventSnapshot = raw.eventSnapshot && typeof raw.eventSnapshot === "object" ? raw.eventSnapshot : {};
+
+  return {
+    enableCallReminderMinutesBefore: firstDefined(
+      event.enableCallReminderMinutesBefore,
+      raw.enableCallReminderMinutesBefore,
+      eventSnapshot.enableCallReminderMinutesBefore,
+      eventCurrent.enableCallReminderMinutesBefore,
+      event.setReminders,
+      raw.setReminders,
+      eventSnapshot.setReminders,
+      eventCurrent.setReminders,
+    ),
+    callReminderMinutesBefore: firstDefined(
+      event.callReminderMinutesBefore,
+      raw.callReminderMinutesBefore,
+      raw.reminderMinutes,
+      eventSnapshot.callReminderMinutesBefore,
+      eventSnapshot.reminderMinutes,
+      eventCurrent.callReminderMinutesBefore,
+      eventCurrent.reminderMinutes,
+    ),
+    reminderMinutes: firstDefined(
+      raw.reminderMinutes,
+      event.reminderMinutes,
+      eventSnapshot.reminderMinutes,
+      eventCurrent.reminderMinutes,
+    ),
+    extensions: firstDefined(event.extensions, raw.extensions, []),
+  };
+}
+
 function toWidgetItem(event, options = {}) {
   const startDate = asDate(event.start) || new Date();
   const endDate = asDate(event.end) || startDate;
@@ -667,6 +706,7 @@ function toWidgetItem(event, options = {}) {
     startAt: event?.start,
     endAt: event?.end,
     status: event?.status || event?.raw?.status || "",
+    ...getJoinOptionsFromEvent(event),
   });
   const accentColor = resolveTypeColor({
     callType: event?.eventCallType || event?.raw?.eventCallType || "",
@@ -1066,13 +1106,14 @@ const handleJoin = (item) => {
     startAt: sourceEvent?.start,
     endAt: sourceEvent?.end,
     status: sourceEvent?.status || sourceEvent?.raw?.status || "",
+    ...getJoinOptionsFromEvent(sourceEvent),
   });
 
   if (!joinState.canJoin || !joinState.joinUrl) {
     showToast({
       type: "error",
       title: "Join Unavailable",
-      message: "You can join only within 5 minutes of the meeting start time and before it ends.",
+      message: "You can join only during the confirmed booking's join window and before it ends.",
     });
     return;
   }

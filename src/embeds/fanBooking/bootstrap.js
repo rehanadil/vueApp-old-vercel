@@ -42,10 +42,16 @@ function toPositiveNumberOr(value, fallback = null) {
   return numeric > 0 ? numeric : fallback;
 }
 
+function toNonNegativeNumberOr(value, fallback = null) {
+  const numeric = toNumberOr(value, fallback);
+  if (numeric == null) return fallback;
+  return numeric >= 0 ? numeric : fallback;
+}
+
 export function normalizeOneOnOneBookingBootstrap(payload = {}) {
   return {
     creatorId: toPositiveNumberOr(payload.creatorId, null),
-    fanId: toPositiveNumberOr(payload.fanId, null),
+    fanId: toNonNegativeNumberOr(payload.fanId, null),
     eventId: normalizeEventId(payload.eventId),
     apiBaseUrl: typeof payload.apiBaseUrl === "string" ? payload.apiBaseUrl : "",
     jwtToken: typeof payload.jwtToken === "string" ? payload.jwtToken : "",
@@ -69,7 +75,7 @@ export function applyOneOnOneBookingBootstrap(payload = {}) {
   bootstrapState.apiBaseUrl = normalized.apiBaseUrl;
   bootstrapState.jwtToken = normalized.jwtToken;
   bootstrapState.creatorData = normalized.creatorData;
-  bootstrapState.bootstrapped = normalized.creatorId != null && normalized.fanId != null;
+  bootstrapState.bootstrapped = normalized.creatorId != null;
   applyBackendJwtTokenSafely(normalized.jwtToken);
   logFanBookingDebug("bootstrap", "apply:end", {
     state: {
@@ -85,13 +91,39 @@ export function applyOneOnOneBookingBootstrap(payload = {}) {
   return normalized;
 }
 
+export function applyOneOnOneBookingAuthUpdate(payload = {}) {
+  const fanId = toNonNegativeNumberOr(payload.fanId, null);
+  const hasJwtToken = Object.prototype.hasOwnProperty.call(payload, "jwtToken");
+  const jwtToken = hasJwtToken && typeof payload.jwtToken === "string" ? payload.jwtToken : "";
+
+  logFanBookingDebug("bootstrap", "auth-update:start", {
+    payload,
+    normalized: { fanId, jwtToken },
+  });
+
+  if (fanId != null) {
+    bootstrapState.fanId = fanId;
+  }
+
+  if (hasJwtToken) {
+    bootstrapState.jwtToken = jwtToken;
+    applyBackendJwtTokenSafely(jwtToken);
+  }
+
+  bootstrapState.bootstrapped = bootstrapState.creatorId != null;
+  return {
+    fanId: bootstrapState.fanId,
+    jwtToken: bootstrapState.jwtToken,
+  };
+}
+
 export function readOneOnOneBookingBootstrapFromUrl() {
   if (typeof window === "undefined") return null;
 
   const params = new URLSearchParams(window.location.search);
   const creatorId = toPositiveNumberOr(params.get("creatorId"), null);
-  const fanId = toPositiveNumberOr(params.get("fanId"), null);
-  if (creatorId == null || fanId == null) {
+  const fanId = toNonNegativeNumberOr(params.get("fanId"), null);
+  if (creatorId == null) {
     logFanBookingDebug("bootstrap", "url:missing", {
       creatorId,
       fanId,

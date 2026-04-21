@@ -22,6 +22,7 @@ import { useEventBackgroundImage } from './useEventBackgroundImage.js';
 import FlowHandler from '@/services/flow-system/FlowHandler'
 import { useChatSocket } from '@/composables/useChatSocket';
 import { resolveGuestSessionId } from '@/utils/resolveGuestSessionId';
+import { getBackendJwtToken, setBackendJwtToken } from '@/utils/backendJwt.js';
 
 const loadTopUpForm = () => import('../HelperComponents/TopUpForm.vue');
 let topUpFormPrefetchPromise = null;
@@ -251,6 +252,7 @@ const remainingBalance = computed(() => {
 
 const remainingBalanceAfterBooking = computed(() => walletBalance.value + topUpAmount.value - totalPrice.value);
 const isTopUpSubstep = computed(() => paymentSubstep.value === PAYMENT_SUBSTEP_TOPUP);
+const isGuestFlow = computed(() => resolveFanId() <= 0 || !getBackendJwtToken());
 
 const temporaryHold = computed(() => props.engine.getState('fanBooking.temporaryHold') || {});
 const hasBookingCreated = computed(() => Boolean(
@@ -437,6 +439,112 @@ function resolveFanId() {
     fallback: 0,
   });
   return resolved;
+}
+
+function getGuestSessionId() {
+  const existing = props.engine.getState('fanBooking.temporaryHold.guestSessionId');
+  if (existing) return existing;
+
+  const guestSessionId = resolveGuestSessionId();
+  props.engine.setState('fanBooking.temporaryHold.guestSessionId', guestSessionId, {
+    reason: 'guest-session-id',
+    silent: true,
+  });
+  return guestSessionId;
+}
+
+function getGuestHoldToken() {
+  return props.engine.getState('fanBooking.temporaryHold.guestHoldToken') || '';
+}
+
+function guestHoldHeaders() {
+  const guestHoldToken = getGuestHoldToken();
+  if (!isGuestFlow.value && !guestHoldToken) return {};
+  return {
+    ...(isGuestFlow.value ? { Authorization: null } : {}),
+    ...(guestHoldToken ? { 'X-Guest-Hold-Token': String(guestHoldToken) } : {}),
+  };
+}
+
+function normalizeAuthUpdatePayload(payload = {}) {
+  const source = payload?.response && typeof payload.response === 'object'
+    ? { ...payload.response, ...payload }
+    : payload;
+  const userId = source?.userId
+    ?? source?.user_id
+    ?? source?.userData?.userID
+    ?? source?.userData?.user_id
+    ?? source?.data?.userId
+    ?? source?.data?.user_id
+    ?? null;
+  const backendJwtToken = source?.backendJwtToken
+    ?? source?.jwtToken
+    ?? source?.backend_jwt_token
+    ?? source?.jwt_token
+    ?? source?.token
+    ?? source?.data?.backendJwtToken
+    ?? source?.data?.jwtToken
+    ?? '';
+
+  return {
+    userId: Number(userId),
+    backendJwtToken: typeof backendJwtToken === 'string' ? backendJwtToken.trim() : '',
+  };
+}
+
+async function applyAuthenticatedFanContext(payload = {}, { refreshBalance = true } = {}) {
+  const { userId, backendJwtToken } = normalizeAuthUpdatePayload(payload);
+  const hasUserId = Number.isFinite(userId) && userId > 0;
+
+  if (backendJwtToken) {
+    setBackendJwtToken(backendJwtToken);
+  }
+
+  if (!hasUserId) return false;
+
+  props.engine.setState('fanBooking.context.fanId', userId, { reason: 'auth-user-id', silent: true });
+
+  const creatorId = resolveCreatorId();
+  if (Number.isFinite(Number(creatorId)) && Number(creatorId) > 0) {
+    await props.engine.callFlow('bookings.fetchCreatorBookingContext', {
+      creatorId,
+      fanId: userId,
+      status: 'active',
+      limit: 100,
+      periodMonths: 6,
+      slotLimit: 2000,
+    }, {
+      forceRefresh: true,
+      context: {
+        stateEngine: props.engine,
+        creatorId,
+        fanId: userId,
+        apiBaseUrl: props.apiBaseUrl || undefined,
+      },
+    }).catch(() => {});
+  }
+
+  const temporaryHoldId = props.engine.getState('fanBooking.temporaryHold.temporaryHoldId');
+  if (temporaryHoldId && getBackendJwtToken()) {
+    await FlowHandler.run('bookings.updateTemporaryHoldUser', {
+      temporaryHoldId,
+      userId,
+    }, {
+      context: {
+        stateEngine: props.engine,
+        apiBaseUrl: props.apiBaseUrl || undefined,
+        requestHeaders: guestHoldHeaders(),
+      },
+      backendJwtToken: getBackendJwtToken(),
+    });
+  }
+
+  if (refreshBalance) {
+    hasCheckedBalance.value = false;
+    await refreshWalletBalance({ silent: true });
+  }
+
+  return true;
 }
 
 function resolveCreatorId() {
@@ -728,6 +836,7 @@ async function refreshTemporaryHoldStatus(temporaryHoldId) {
     context: {
       stateEngine: props.engine,
       apiBaseUrl: props.apiBaseUrl || undefined,
+      requestHeaders: guestHoldHeaders(),
     },
     forceRefresh: true,
     skipDestinationRead: true,
@@ -758,8 +867,11 @@ async function ensureTemporaryHold() {
       context: {
         stateEngine: props.engine,
         apiBaseUrl: props.apiBaseUrl || undefined,
-        userId: resolveFanId() || resolveGuestSessionId(),
-        fanId: resolveFanId() || resolveGuestSessionId(),
+        userId: isGuestFlow.value ? 0 : resolveFanId(),
+        fanId: isGuestFlow.value ? 0 : resolveFanId(),
+        guestSessionId: isGuestFlow.value ? getGuestSessionId() : null,
+        isGuestHold: isGuestFlow.value,
+        requestHeaders: isGuestFlow.value ? { Authorization: null } : {},
       },
     });
 
@@ -778,6 +890,13 @@ async function ensureTemporaryHold() {
 
       holdError.value = getHoldStatusMessage(createResult);
       return false;
+    }
+
+    if (createResult.data?.guestHoldToken) {
+      props.engine.setState('fanBooking.temporaryHold.guestHoldToken', createResult.data.guestHoldToken, {
+        reason: 'temporary-hold-guest-token',
+        silent: true,
+      });
     }
 
     const latestHoldId = createResult.data?.temporaryHoldId || props.engine.getState('fanBooking.temporaryHold.temporaryHoldId');
@@ -817,13 +936,19 @@ async function refreshWalletBalance({ silent = false } = {}) {
     },
   });
 
-  if (fanId == null) {
-    hasCheckedBalance.value = false;
-    balanceCheckError.value = 'Could not resolve user for balance check.';
-    logFanBookingDebug('step3', 'refreshWalletBalance:missing-user', {
-      balanceCheckError: balanceCheckError.value,
+  if (fanId <= 0 || !getBackendJwtToken()) {
+    walletBalance.value = 0;
+    props.engine.setState('bookingDetails.walletBalance', 0, {
+      reason: 'guest-token-balance-default',
+      silent: true,
     });
-    return false;
+    hasCheckedBalance.value = true;
+    balanceCheckError.value = '';
+    logFanBookingDebug('step3', 'refreshWalletBalance:guest-default', {
+      fanId,
+      hasBackendJwtToken: !!getBackendJwtToken(),
+    });
+    return true;
   }
 
   isCheckingBalance.value = true;
@@ -1055,24 +1180,18 @@ const onTopUpPaymentFailed = () => {
   props.engine.forceSubstep(PAYMENT_SUBSTEP_SUMMARY, { intent: 'topup-payment-failed' });
 };
 
-const onTopUpPaymentSuccess = async ({ userId } = {}) => {
-  if (userId) {
-    props.engine.setState('fanBooking.context.fanId', Number(userId), { reason: 'topup-user-id', silent: true });
-
-    // Update the temporary hold's userId from guest placeholder (1) to the real userId
-    const temporaryHoldId = props.engine.getState('fanBooking.temporaryHold.temporaryHoldId');
-    if (temporaryHoldId) {
-      await FlowHandler.run('bookings.updateTemporaryHoldUser', {
-        temporaryHoldId,
-        userId: Number(userId),
-      }, {
-        context: {
-          stateEngine: props.engine,
-          apiBaseUrl: props.apiBaseUrl || undefined,
-        },
-      });
-    }
+const onTopUpPaymentSuccess = async (payload = {}) => {
+  const authApplied = await applyAuthenticatedFanContext(payload, { refreshBalance: false });
+  if (!authApplied || !getBackendJwtToken()) {
+    showToast({
+      type: 'error',
+      title: 'Account Verification Needed',
+      message: 'Payment succeeded, but we could not verify your account for booking. Please log in and try again.',
+    });
+    topUpFormRef.value?.setProcessingPayment(false);
+    return;
   }
+
   const toppedUpBalance = walletBalance.value + topUpAmount.value;
   walletBalance.value = toppedUpBalance;
   props.engine.setState('bookingDetails.walletBalance', toppedUpBalance, { reason: 'top-up-preview', silent: true });
@@ -1084,6 +1203,10 @@ const onTopUpPaymentSuccess = async ({ userId } = {}) => {
   } finally {
     topUpFormRef.value?.setProcessingPayment(false);
   }
+};
+
+const onTopUpAuthUpdated = async (payload = {}) => {
+  await applyAuthenticatedFanContext(payload, { refreshBalance: true });
 };
 
 // --- BUTTON HANDLERS ---
@@ -1408,6 +1531,7 @@ onBeforeUnmount(() => {
                   :fan-id="resolveFanId()"
                   :creator-id="resolveCreatorId()"
                   @back="goBackToPaymentSummary"
+                  @auth-updated="onTopUpAuthUpdated"
                   @success="onTopUpPaymentSuccess"
                   @payment-failed="onTopUpPaymentFailed"
                 />

@@ -29,12 +29,14 @@
 import { onBeforeUnmount, onMounted } from "vue";
 import OneOnOneBookingFlowFeature from "@/components/FanBookingFlow/OneOnOneBookingFlow/OneOnOneBookingFlowFeature.vue";
 import {
+  applyOneOnOneBookingAuthUpdate,
   applyOneOnOneBookingBootstrap,
   readOneOnOneBookingBootstrapFromUrl,
   useOneOnOneBookingBootstrap,
 } from "@/embeds/fanBooking/bootstrap.js";
 import {
   announceOneOnOneBookingReady,
+  installOneOnOneBookingAuthUpdateListener,
   installOneOnOneBookingBootstrapListener,
   isEmbeddedIframe,
   notifyOneOnOneBookingCreated,
@@ -46,6 +48,7 @@ import { logFanBookingDebug, markFanBookingDebugEnabled } from "@/embeds/fanBook
 const bootstrap = useOneOnOneBookingBootstrap();
 
 let removeBootstrapListener = () => {};
+let removeAuthUpdateListener = () => {};
 
 function handleCloseRequest() {
   logFanBookingDebug("app", "close-request");
@@ -78,6 +81,9 @@ onMounted(() => {
   removeBootstrapListener = installOneOnOneBookingBootstrapListener((payload) => {
     applyOneOnOneBookingBootstrap(payload);
   });
+  removeAuthUpdateListener = installOneOnOneBookingAuthUpdateListener((payload) => {
+    applyOneOnOneBookingAuthUpdate(payload);
+  });
 
   const fallbackBootstrap = readOneOnOneBookingBootstrapFromUrl();
   if (fallbackBootstrap) {
@@ -93,5 +99,6 @@ onMounted(() => {
 onBeforeUnmount(() => {
   logFanBookingDebug("app", "before-unmount");
   removeBootstrapListener();
+  removeAuthUpdateListener();
 });
 </script>

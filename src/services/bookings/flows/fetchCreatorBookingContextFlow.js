@@ -46,7 +46,7 @@ function readCachedRawEvents(context) {
 function shouldFetchFirstTimeDiscountStatus(payload = {}) {
   const creatorId = toNumber(payload.creatorId, null);
   const fanId = toNumber(payload.fanId, null);
-  return creatorId != null && fanId != null;
+  return creatorId != null && fanId != null && fanId > 0;
 }
 
 export async function fetchCreatorBookingContextFlow({ payload, context, api }) {
@@ -102,9 +102,11 @@ export async function fetchCreatorBookingContextFlow({ payload, context, api }) 
     const bookedSlots = Array.isArray(bookedSlotsResponse?.slots) ? bookedSlotsResponse.slots : [];
     let isFirstBookingForCreator = null;
 
-    if (shouldFetchFirstTimeDiscountStatus(payload)) {
-      const creatorId = toNumber(payload.creatorId, null);
-      const fanId = toNumber(payload.fanId, null);
+    const creatorId = toNumber(payload.creatorId, null);
+    const fanId = toNumber(payload.fanId, null);
+    if (fanId === 0) {
+      isFirstBookingForCreator = true;
+    } else if (shouldFetchFirstTimeDiscountStatus(payload)) {
       const eligibilityResponse = await api.get(
         `${baseUrl}/bookings/creators/${creatorId}/fans/${fanId}/first-time-discount-status`,
         {

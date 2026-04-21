@@ -9,6 +9,7 @@
   var FS_FAN_BOOKING_CREATED = "FS_FAN_BOOKING_CREATED";
   var FS_FAN_BOOKING_FAILED = "FS_FAN_BOOKING_FAILED";
   var FS_FAN_BOOKING_DEBUG = "FS_FAN_BOOKING_DEBUG";
+  var FS_FAN_BOOKING_AUTH_UPDATE = "FS_FAN_BOOKING_AUTH_UPDATE";
 
   var activeOneOnOnePopup = null;
   var EVENTS_EMBED_ROOT_CLASS = "fs-events-embed";
@@ -452,10 +453,6 @@
       throw new Error("FSEventsEmbed.openFanBookingPopup requires a positive creatorId.");
     }
 
-    if (safePositiveNumber(settings.fanId, null) == null) {
-      throw new Error("FSEventsEmbed.openFanBookingPopup requires a positive fanId.");
-    }
-
     var targetOrigin = normalizeTargetOrigin(settings.targetOrigin);
     var creatorData = normalizeCreatorData(settings.creatorData);
     var unlockBodyScroll = lockBodyScroll();
@@ -482,7 +479,7 @@
 
     var iframeSrc = buildIframeSrcWithQuery(settings.src, {
       creatorId: safePositiveNumber(settings.creatorId, null),
-      fanId: safePositiveNumber(settings.fanId, null),
+      fanId: safeNumber(settings.fanId, null),
       eventId: settings.eventId == null || settings.eventId === "" ? null : String(settings.eventId),
       apiBaseUrl: settings.apiBaseUrl || "",
       jwtToken: settings.jwtToken || "",
@@ -497,7 +494,7 @@
 
       logFanBookingDebug("host", "sendBootstrap", {
         creatorId: safePositiveNumber(settings.creatorId, null),
-        fanId: safePositiveNumber(settings.fanId, null),
+        fanId: safeNumber(settings.fanId, null),
         eventId: settings.eventId == null || settings.eventId === "" ? null : String(settings.eventId),
         apiBaseUrl: settings.apiBaseUrl || "",
         jwtToken: settings.jwtToken || "",
@@ -509,7 +506,7 @@
         type: FS_FAN_BOOKING_BOOTSTRAP,
         payload: {
           creatorId: safePositiveNumber(settings.creatorId, null),
-          fanId: safePositiveNumber(settings.fanId, null),
+          fanId: safeNumber(settings.fanId, null),
           eventId: settings.eventId == null || settings.eventId === "" ? null : String(settings.eventId),
           apiBaseUrl: settings.apiBaseUrl || "",
           jwtToken: settings.jwtToken || "",
@@ -580,6 +577,27 @@
     function close() {
       logFanBookingDebug("host", "close", {}, settings);
       destroy({ invokeOnClose: true });
+    }
+
+    function updateAuth(authOptions) {
+      var authSettings = authOptions || {};
+      settings.fanId = safeNumber(authSettings.fanId, settings.fanId);
+      settings.jwtToken = typeof authSettings.jwtToken === "string" ? authSettings.jwtToken : settings.jwtToken;
+
+      if (!iframe.contentWindow || isDestroyed) return;
+
+      logFanBookingDebug("host", "auth-update", {
+        fanId: safeNumber(settings.fanId, null),
+        hasJwtToken: !!settings.jwtToken,
+      }, settings);
+
+      iframe.contentWindow.postMessage({
+        type: FS_FAN_BOOKING_AUTH_UPDATE,
+        payload: {
+          fanId: safeNumber(settings.fanId, null),
+          jwtToken: settings.jwtToken || "",
+        },
+      }, targetOrigin);
     }
 
     function onIframeLoad() {
@@ -659,7 +677,7 @@
     logFanBookingDebug("host", "popup-open", {
       iframeSrc: iframeSrc,
       creatorId: safePositiveNumber(settings.creatorId, null),
-      fanId: safePositiveNumber(settings.fanId, null),
+      fanId: safeNumber(settings.fanId, null),
       eventId: settings.eventId == null || settings.eventId === "" ? null : String(settings.eventId),
       creatorData: creatorData,
     }, settings);
@@ -676,15 +694,23 @@
       overlay: overlay,
       close: close,
       destroy: destroy,
+      updateAuth: updateAuth,
     };
     global.__FSFanBookingActivePopup = activeOneOnOnePopup;
 
     return activeOneOnOnePopup;
   }
 
+  function updateFanBookingAuth(options) {
+    if (!activeOneOnOnePopup || typeof activeOneOnOnePopup.updateAuth !== "function") return false;
+    activeOneOnOnePopup.updateAuth(options || {});
+    return true;
+  }
+
   global.FSEventsEmbed = {
     mount: mount,
     openFanBookingPopup: openFanBookingPopup,
+    updateFanBookingAuth: updateFanBookingAuth,
   };
 
   preloadFanBookingSkeletonTemplate();

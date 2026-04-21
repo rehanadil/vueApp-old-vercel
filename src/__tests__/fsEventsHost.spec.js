@@ -21,13 +21,37 @@ describe("fs-events-host openFanBookingPopup", () => {
     }).toThrow("positive creatorId");
   });
 
-  it("rejects fanId 0", () => {
-    expect(() => {
-      window.FSEventsEmbed.openFanBookingPopup({
-        creatorId: 1407,
-        fanId: 0,
-      });
-    }).toThrow("positive fanId");
+  it("accepts fanId 0 for guest booking popups", () => {
+    const popup = window.FSEventsEmbed.openFanBookingPopup({
+      creatorId: 1407,
+      fanId: 0,
+    });
+
+    expect(popup.iframe.src).toContain("fanId=0");
+  });
+
+  it("posts auth updates to the active booking popup without remounting", () => {
+    const popup = window.FSEventsEmbed.openFanBookingPopup({
+      creatorId: 1407,
+      fanId: 0,
+    });
+    const postMessage = vi.spyOn(popup.iframe.contentWindow, "postMessage");
+
+    expect(window.FSEventsEmbed.updateFanBookingAuth({
+      fanId: 2615,
+      jwtToken: "jwt_live",
+    })).toBe(true);
+
+    expect(postMessage).toHaveBeenCalledWith(
+      {
+        type: "FS_FAN_BOOKING_AUTH_UPDATE",
+        payload: {
+          fanId: 2615,
+          jwtToken: "jwt_live",
+        },
+      },
+      window.location.origin,
+    );
   });
 
   it("hides the loading layer when the child-ready message arrives", () => {

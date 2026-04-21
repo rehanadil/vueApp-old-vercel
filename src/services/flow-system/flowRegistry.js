@@ -329,6 +329,7 @@ export const flowRegistry = {
         { type: "stateEngine", key: "fanBooking.temporaryHold", mode: "merge", select: "temporaryHold" },
         { type: "stateEngine", key: "fanBooking.temporaryHold.temporaryHoldId", mode: "set", select: "temporaryHoldId" },
         { type: "stateEngine", key: "fanBooking.temporaryHold.expiresAt", mode: "set", select: "expiresAt" },
+        { type: "stateEngine", key: "fanBooking.temporaryHold.guestHoldToken", mode: "set", select: "guestHoldToken" },
         { type: "stateEngine", key: "fanBooking.temporaryHold.status", mode: "set", value: "active" },
         { type: "stateEngine", key: "fanBooking.temporaryHold.createdAt", mode: "set", value: "@now" },
       ],
@@ -373,6 +374,8 @@ export const flowRegistry = {
           expiresAt: null,
           secondsRemaining: 0,
           checkedAt: "@now",
+          guestSessionId: null,
+          guestHoldToken: null,
         } },
       ],
       uiErrorMap: {

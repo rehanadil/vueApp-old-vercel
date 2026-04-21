@@ -205,6 +205,8 @@ const engine = createFlowStateEngine({
         secondsRemaining: 0,
         createdAt: null,
         checkedAt: null,
+        guestSessionId: null,
+        guestHoldToken: null,
       },
       booking: {
         result: null,
@@ -345,7 +347,7 @@ function resolveFanId() {
     preferredId: props.fanId,
     route,
     engine,
-    fallback: 2,
+    fallback: 0,
   });
 }
 
@@ -436,8 +438,8 @@ async function loadBookingContext({ forceRefresh = false } = {}) {
     forceRefresh,
   });
 
-  if (creatorId == null || fanId == null) {
-    const message = "Missing creator or fan user id for booking flow.";
+  if (creatorId == null) {
+    const message = "Missing creator user id for booking flow.";
     engine.setState("fanBooking.ui.catalogError", message, { reason: "catalog-load-failed", silent: true });
     showToast({
       type: "error",
@@ -613,6 +615,8 @@ async function loadPreviewContext() {
     secondsRemaining: 0,
     createdAt: null,
     checkedAt: null,
+    guestSessionId: null,
+    guestHoldToken: null,
   }, { reason: "preview-load", silent: true });
 
   await engine.forceStep(startStep, { intent: "feature-open-preview" });
@@ -634,6 +638,11 @@ function getActiveTemporaryHoldId() {
   if (!temporaryHoldId) return null;
   if (status && status !== "active") return null;
   return temporaryHoldId;
+}
+
+function getGuestHoldHeaders() {
+  const guestHoldToken = engine.getState("fanBooking.temporaryHold.guestHoldToken") || "";
+  return guestHoldToken ? { "X-Guest-Hold-Token": String(guestHoldToken) } : {};
 }
 
 function initializeChatSocketSafely(fanId) {
@@ -669,6 +678,7 @@ async function releaseTemporaryHoldIfNeeded({ silent = false } = {}) {
         context: {
           stateEngine: engine,
           apiBaseUrl: props.apiBaseUrl || undefined,
+          requestHeaders: getGuestHoldHeaders(),
         },
         forceRefresh: true,
         skipDestinationRead: true,
@@ -714,6 +724,20 @@ onMounted(async () => {
   clearSelectedEvent("feature-mount");
   await loadBookingContext();
 });
+
+watch(
+  () => props.fanId,
+  async () => {
+    if (props.previewMode) return;
+    const nextFanId = resolveFanId();
+    engine.setState("fanBooking.context.fanId", nextFanId, { reason: "feature-auth-update", silent: true });
+    initializeChatSocketSafely(nextFanId);
+
+    if (Number(nextFanId) > 0) {
+      await loadBookingContext({ forceRefresh: true });
+    }
+  },
+);
 
 onBeforeUnmount(() => {
   logFanBookingDebug("feature", "before-unmount");

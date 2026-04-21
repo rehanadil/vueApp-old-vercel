@@ -274,6 +274,10 @@ function pickFirstString(...values) {
     return '';
 }
 
+function firstDefined(...values) {
+    return values.find((value) => value !== undefined && value !== null);
+}
+
 const raw = computed(() => props.event?.raw || {});
 const eventSnapshot = computed(() => raw.value?.eventSnapshot || {});
 const eventCurrent = computed(() => raw.value?.eventCurrent || {});
@@ -386,6 +390,30 @@ const joinState = computed(() => getBookingJoinState({
     startAt: startDate.value,
     endAt: endDate.value,
     status: statusLabel.value,
+    enableCallReminderMinutesBefore: firstDefined(
+        props.event?.enableCallReminderMinutesBefore,
+        raw.value?.enableCallReminderMinutesBefore,
+        eventSnapshot.value?.enableCallReminderMinutesBefore,
+        eventCurrent.value?.enableCallReminderMinutesBefore,
+        props.event?.setReminders,
+        raw.value?.setReminders,
+        eventSnapshot.value?.setReminders,
+        eventCurrent.value?.setReminders,
+    ),
+    callReminderMinutesBefore: firstDefined(
+        props.event?.callReminderMinutesBefore,
+        raw.value?.callReminderMinutesBefore,
+        raw.value?.reminderMinutes,
+        mergedEvent.value?.callReminderMinutesBefore,
+        mergedEvent.value?.reminderMinutes,
+        mergedEvent.value?.remindBeforeMinutes,
+    ),
+    reminderMinutes: firstDefined(
+        raw.value?.reminderMinutes,
+        props.event?.reminderMinutes,
+        mergedEvent.value?.reminderMinutes,
+    ),
+    extensions: firstDefined(props.event?.extensions, raw.value?.extensions, []),
 }));
 const showJoinButton = computed(() => joinState.value.canJoin);
 
