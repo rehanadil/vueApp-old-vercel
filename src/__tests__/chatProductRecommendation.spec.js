@@ -12,6 +12,7 @@ import {
   productPriceLabel,
   productRefreshMatchesMessage,
   resolveChatFanUid,
+  toCloneSafeProductPayload,
 } from "@/utils/chatProductRecommendation.js";
 
 afterEach(() => {
@@ -374,5 +375,60 @@ describe("chat product recommendations", () => {
       item_line_number: null,
       subscribed_tier_id: null,
     }));
+  });
+
+  it("builds selected payloads that are safe for postMessage structured clone", () => {
+    const circular = { stats: { has_access: true } };
+    circular.self = circular;
+    circular.fn = () => "nope";
+    circular.symbol = Symbol("nope");
+    circular.items = [{ ok: true, skip: () => false }];
+
+    const message = {
+      chat_id: "chat#1",
+      message_id: "msg#safe",
+      sender_id: "1407",
+      content_type: "product_recommendation",
+      content: {
+        product_recommendation: {
+          id: 2940,
+          type: "media",
+          title: "Media",
+        },
+      },
+    };
+
+    const payload = buildProductSelectedPayload({
+      message,
+      status: { cta: "watch", detail: circular },
+    });
+
+    expect(() => structuredClone({ type: "FS_CHAT_PRODUCT_SELECTED", payload })).not.toThrow();
+    expect(payload.productDetail).toEqual({
+      stats: { has_access: true },
+      items: [{ ok: true }],
+    });
+  });
+
+  it("sanitizes arbitrary nested values into clone-safe data", () => {
+    const source = {
+      date: new Date("2026-04-21T00:00:00.000Z"),
+      big: 10n,
+      keepNull: null,
+      fn: () => {},
+      sym: Symbol("drop"),
+      array: [1, () => {}, Symbol("drop"), { nested: true }],
+    };
+    source.self = source;
+
+    const safe = toCloneSafeProductPayload(source);
+
+    expect(() => structuredClone(safe)).not.toThrow();
+    expect(safe).toEqual({
+      date: "2026-04-21T00:00:00.000Z",
+      big: "10",
+      keepNull: null,
+      array: [1, { nested: true }],
+    });
   });
 });

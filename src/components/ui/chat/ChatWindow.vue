@@ -1018,10 +1018,18 @@ function onProductCardClick(message, { action = '' } = {}) {
   })
   if (!payload) return
 
-  window.parent.postMessage({
+  const parentMessage = {
     type: 'FS_CHAT_PRODUCT_SELECTED',
     payload,
-  }, '*')
+  }
+
+  try {
+    if (typeof structuredClone === 'function') structuredClone(parentMessage)
+    window.parent.postMessage(parentMessage, '*')
+  } catch (error) {
+    console.error('[ChatWindow] Product recommendation payload could not be posted', error)
+    showToast({ type: 'error', title: 'Product', message: 'Product details could not be sent.' })
+  }
 }
 
 function productForMessage(message) {
