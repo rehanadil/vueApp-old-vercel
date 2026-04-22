@@ -1,5 +1,6 @@
 import { mount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { bookingTranslationSymbol, createBookingTranslator } from "@/i18n/bookingTranslations.js";
 
 let engine;
 const callFlow = vi.fn();
@@ -122,7 +123,7 @@ vi.mock("@/components/calendar/EventsWidget.vue", () => ({
       <div>
         <button
           data-test="widget-join"
-          @click="$emit('join-click', { sourceEvent: { bookingId: 77, start: '2026-03-23T10:00:00Z', end: '2026-03-23T10:30:00Z', status: 'confirmed' } })"
+          @click="$emit('join-click', { sourceEvent: { bookingId: 77, start: '2026-03-23T10:00:00Z', end: '2026-03-23T10:30:00Z', status: 'confirmed', raw: { enableCallReminderMinutesBefore: true, callReminderMinutesBefore: 15, extensions: [{ status: 'held', endAtIso: '2026-03-23T10:45:00Z' }] } } })"
         >
           Join
         </button>
@@ -222,6 +223,26 @@ describe("DashboardEventsFeature", () => {
     ]);
   });
 
+  it("renders dashboard labels from scoped translation overrides", async () => {
+    const { default: DashboardEventsFeature } = await import("@/features/events/DashboardEventsFeature.vue");
+
+    const wrapper = mount(DashboardEventsFeature, {
+      props: {
+        creatorId: 88,
+        userRole: "creator",
+      },
+      global: {
+        provide: {
+          [bookingTranslationSymbol]: createBookingTranslator({
+            translations: { dashboard_new_events: "Eventos nuevos" },
+          }),
+        },
+      },
+    });
+
+    expect(wrapper.get("[data-test='new-events']").text()).toBe("Eventos nuevos");
+  });
+
   it("emits open-url for join actions in embedded mode", async () => {
     const { default: DashboardEventsFeature } = await import("@/features/events/DashboardEventsFeature.vue");
 
@@ -241,5 +262,35 @@ describe("DashboardEventsFeature", () => {
         target: "_blank",
       }],
     ]);
+    expect(getBookingJoinState).toHaveBeenCalledWith(expect.objectContaining({
+      enableCallReminderMinutesBefore: true,
+      callReminderMinutesBefore: 15,
+      extensions: [{ status: "held", endAtIso: "2026-03-23T10:45:00Z" }],
+    }));
+  });
+
+  it("shows current unavailable copy when a confirmed booking cannot be joined", async () => {
+    getBookingJoinState.mockReturnValue({
+      canJoin: false,
+      joinUrl: "https://example.com/join/77",
+    });
+
+    const { default: DashboardEventsFeature } = await import("@/features/events/DashboardEventsFeature.vue");
+
+    const wrapper = mount(DashboardEventsFeature, {
+      props: {
+        creatorId: 77,
+        userRole: "creator",
+      },
+    });
+
+    await wrapper.get("[data-test='widget-join']").trigger("click");
+
+    expect(showToast).toHaveBeenCalledWith({
+      type: "error",
+      title: "Join Unavailable",
+      message: "You can join only during the confirmed booking's join window and before it ends.",
+    });
+    expect(wrapper.emitted("open-url")).toBeUndefined();
   });
 });

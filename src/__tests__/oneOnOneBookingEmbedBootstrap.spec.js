@@ -60,10 +60,12 @@ describe("one-on-one booking embed bootstrap", () => {
         name: "Creator Name",
         isVerified: true,
       },
+      translations: {},
+      locale: "en",
     });
   });
 
-  it("treats zero ids as invalid bootstrap values", async () => {
+  it("accepts fanId 0 while still requiring a positive creator id", async () => {
     const {
       applyOneOnOneBookingBootstrap,
       useOneOnOneBookingBootstrap,
@@ -78,10 +80,27 @@ describe("one-on-one booking embed bootstrap", () => {
 
     const state = useOneOnOneBookingBootstrap();
     expect(state.creatorId).toBe(null);
-    expect(state.fanId).toBe(null);
+    expect(state.fanId).toBe(0);
     expect(state.apiBaseUrl).toBe("https://api.example.com");
     expect(state.jwtToken).toBe("jwt_invalid");
     expect(state.bootstrapped).toBe(false);
+  });
+
+  it("bootstraps guest popups from URL params with fanId 0", async () => {
+    window.history.replaceState(
+      {},
+      "",
+      "/?creatorId=1407&fanId=0&apiBaseUrl=https%3A%2F%2Fapi.example.com",
+    );
+
+    const { readOneOnOneBookingBootstrapFromUrl } = await import("@/embeds/fanBooking/bootstrap.js");
+    const bootstrap = readOneOnOneBookingBootstrapFromUrl();
+
+    expect(bootstrap).toEqual(expect.objectContaining({
+      creatorId: 1407,
+      fanId: 0,
+      apiBaseUrl: "https://api.example.com",
+    }));
   });
 
   it("still marks the popup bootstrapped when backend JWT caching throws", async () => {
@@ -107,6 +126,56 @@ describe("one-on-one booking embed bootstrap", () => {
     expect(state.creatorId).toBe(1407);
     expect(state.fanId).toBe(2615);
     expect(state.jwtToken).toBe("jwt_live");
+    expect(state.bootstrapped).toBe(true);
+  });
+
+  it("applies auth updates without clearing existing creator context", async () => {
+    const {
+      applyOneOnOneBookingAuthUpdate,
+      applyOneOnOneBookingBootstrap,
+      useOneOnOneBookingBootstrap,
+    } = await import("@/embeds/fanBooking/bootstrap.js");
+
+    applyOneOnOneBookingBootstrap({
+      creatorId: 1407,
+      fanId: 0,
+      apiBaseUrl: "https://api.example.com",
+    });
+
+    applyOneOnOneBookingAuthUpdate({
+      fanId: 2615,
+      jwtToken: "jwt_live",
+    });
+
+    const state = useOneOnOneBookingBootstrap();
+    expect(state.creatorId).toBe(1407);
+    expect(state.fanId).toBe(2615);
+    expect(state.jwtToken).toBe("jwt_live");
+    expect(state.bootstrapped).toBe(true);
+  });
+
+  it("can clear auth without losing popup bootstrap context", async () => {
+    const {
+      applyOneOnOneBookingAuthUpdate,
+      applyOneOnOneBookingBootstrap,
+      useOneOnOneBookingBootstrap,
+    } = await import("@/embeds/fanBooking/bootstrap.js");
+
+    applyOneOnOneBookingBootstrap({
+      creatorId: 1407,
+      fanId: 2615,
+      jwtToken: "jwt_live",
+    });
+
+    applyOneOnOneBookingAuthUpdate({
+      fanId: 0,
+      jwtToken: "",
+    });
+
+    const state = useOneOnOneBookingBootstrap();
+    expect(state.creatorId).toBe(1407);
+    expect(state.fanId).toBe(0);
+    expect(state.jwtToken).toBe("");
     expect(state.bootstrapped).toBe(true);
   });
 });

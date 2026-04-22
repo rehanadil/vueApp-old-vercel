@@ -18,6 +18,7 @@ import { addDays, startOfWeek } from "@/utils/calendarHelpers.js";
 import { useBodyOverflowHidden } from "@/composables/useBodyOverflowHidden";
 import { mapDraftEventToFanBookingPreview } from "@/services/events/mappers/mapDraftEventToFanBookingPreview.js";
 import { resolveCreatorIdFromContext } from "@/utils/contextIds.js";
+import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
 
 // Import Validators
 import { step1Validator, step2Validator } from "@/services/events/validators/eventStepValidators.js";
@@ -49,6 +50,7 @@ const props = defineProps({
 const emit = defineEmits(["created", "back"]);
 const route = useRoute();
 const router = useRouter();
+const { t } = useBookingTranslations();
 const DEFAULT_VUE_CREATOR_ID = 1407;
 
 /**
@@ -166,6 +168,7 @@ const previewSchedule = ref(false);
 const calendarBookedSlots = ref([]);
 const calendarAvailabilitySlots = ref([]);
 const creatorEventsForCalendar = ref([]);
+const bookedSlotsRawForCalendar = ref([]);
 const bookedSlotsIndexForCalendar = ref({});
 const calendarLoading = ref(false);
 const calendarError = ref(null);
@@ -226,6 +229,18 @@ const previewBookedSlotsForFanFlow = computed(() => {
     return Array.isArray(slots) ? slots : [];
 });
 
+const clearRefreshQueryFlag = async () => {
+    if (route.query?.refresh == null) return;
+
+    const nextQuery = { ...route.query };
+    delete nextQuery.refresh;
+
+    await router.replace({
+        path: route.path,
+        query: nextQuery,
+    });
+};
+
 const fetchCreatorBookedSlots = async (forceRefresh = false) => {
     const creatorId = resolveCreatorId();
     calendarLoading.value = true;
@@ -253,39 +268,29 @@ const fetchCreatorBookedSlots = async (forceRefresh = false) => {
     if (!result?.ok) {
         calendarError.value = result?.meta?.uiErrors?.[0]
             || result?.error?.message
-            || "Could not load creator booked slots.";
+            || t("booking_load_creator_booked_slots_failed");
         calendarBookedSlots.value = [];
         calendarAvailabilitySlots.value = [];
         creatorEventsForCalendar.value = [];
+        bookedSlotsRawForCalendar.value = [];
         bookedSlotsIndexForCalendar.value = {};
     } else {
         const creatorEvents = Array.isArray(result?.data?.events) ? result.data.events : [];
+        const bookedSlotsRaw = Array.isArray(result?.data?.bookedSlots) ? result.data.bookedSlots : [];
         const bookedSlotsIndex = result?.data?.bookedSlotsIndex || {};
 
         creatorEventsForCalendar.value = creatorEvents;
+        bookedSlotsRawForCalendar.value = bookedSlotsRaw;
         bookedSlotsIndexForCalendar.value = bookedSlotsIndex;
-
-        const mappedBooked = mapBookedSlotsToCalendarEvents(result?.data?.bookedSlots, {
-            includeStatuses: ["pending", "pending_hold", "confirmed", "completed"],
-            titleFallback: "Booked Slot",
+        const { bookedCalendarSlots, availabilityCalendarSlots } = buildCalendarSlotsFromContext({
+            creatorEvents,
+            bookedSlotsRaw,
+            bookedSlotsIndex,
+            focusDate: state.focus,
         });
 
-        const colorByEventId = new Map(
-            creatorEvents
-                .map((event) => [
-                    String(event?.eventId || event?.id || ""),
-                    event?.eventColorSkin || event?.raw?.eventColorSkin || DEFAULT_EVENT_COLOR,
-                ])
-                .filter(([eventId]) => Boolean(eventId))
-        );
-
-        calendarBookedSlots.value = mappedBooked.map((event) => ({
-            ...event,
-            isExistingSchedule: true,
-            color: colorByEventId.get(String(event?.eventId || "")) || DEFAULT_EVENT_COLOR,
-        }));
-
-        rebuildAvailabilityPreview();
+        calendarBookedSlots.value = bookedCalendarSlots;
+        calendarAvailabilitySlots.value = availabilityCalendarSlots;
     }
 
     calendarLoading.value = false;
@@ -308,7 +313,11 @@ onMounted(() => {
         currentStep.value = next;
     });
 
-    fetchCreatorBookedSlots(route.query?.refresh === "1");
+    const shouldForceRefresh = route.query?.refresh === "1";
+    fetchCreatorBookedSlots(shouldForceRefresh);
+    if (shouldForceRefresh) {
+        clearRefreshQueryFlag();
+    }
 });
 
 watch(currentType, (nextType) => {
@@ -331,6 +340,15 @@ watch(
     () => props.apiBaseUrl,
     (nextValue) => {
         bookingFlow.setState("apiBaseUrl", nextValue || "", { reason: "api-base-url-sync", silent: true });
+    },
+);
+
+watch(
+    () => route.query?.refresh,
+    (nextRefresh, previousRefresh) => {
+        if (nextRefresh !== "1" || nextRefresh === previousRefresh) return;
+        fetchCreatorBookedSlots(true);
+        clearRefreshQueryFlag();
     },
 );
 
@@ -403,6 +421,79 @@ function hexToRgb(hexColor = DEFAULT_EVENT_COLOR) {
 function rgba(hexColor, alpha = 1) {
     const { r, g, b } = hexToRgb(hexColor);
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function buildCalendarSlotsFromContext({
+    creatorEvents = [],
+    bookedSlotsRaw = [],
+    bookedSlotsIndex = {},
+    focusDate = new Date(),
+}) {
+    const calendarSlots = mapBookedSlotsToCalendarEvents(bookedSlotsRaw, {
+        includeStatuses: ["pending", "pending_hold", "confirmed", "completed"],
+        titleFallback: "Booked Slot",
+    });
+
+    const colorByEventId = new Map(
+        creatorEvents
+            .map((event) => [
+                String(event?.eventId || event?.id || ""),
+                event?.eventColorSkin || event?.raw?.eventColorSkin || DEFAULT_EVENT_COLOR,
+            ])
+            .filter(([eventId]) => Boolean(eventId))
+    );
+
+    const callTypeByEventId = new Map(
+        creatorEvents
+            .map((event) => [
+                String(event?.eventId || event?.id || ""),
+                String(event?.eventCallType || event?.raw?.eventCallType || "").toLowerCase(),
+            ])
+            .filter(([eventId]) => Boolean(eventId))
+    );
+
+    const eventTypeByEventId = new Map(
+        creatorEvents
+            .map((event) => [
+                String(event?.eventId || event?.id || ""),
+                String(event?.type || event?.eventType || event?.raw?.type || event?.raw?.eventType || "").toLowerCase(),
+            ])
+            .filter(([eventId]) => Boolean(eventId))
+    );
+
+    const bookedCalendarSlots = calendarSlots.map((event) => ({
+        ...event,
+        isExistingSchedule: true,
+        eventCallType: callTypeByEventId.get(String(event?.eventId || "")) || String(event?.raw?.eventCallType || "").toLowerCase(),
+        color: colorByEventId.get(String(event?.eventId || "")) || DEFAULT_EVENT_COLOR,
+        raw: {
+            ...(event?.raw || {}),
+            eventCallType: callTypeByEventId.get(String(event?.eventId || "")) || String(event?.raw?.eventCallType || "").toLowerCase(),
+            eventType: eventTypeByEventId.get(String(event?.eventId || "")) || String(event?.raw?.eventType || event?.type || "").toLowerCase(),
+        },
+    }));
+
+    const availabilityCalendarSlots = mapAvailabilityToCalendarEvents(creatorEvents, {
+        bookedSlotsIndex,
+        focusDate,
+        rangeDaysBefore: 14,
+        rangeDaysAfter: 56,
+    }).map((event) => ({
+        ...event,
+        slot: "availability",
+        color: "#98A2B3",
+        eventCallType: callTypeByEventId.get(String(event?.eventId || "")) || String(event?.eventCallType || "").toLowerCase(),
+        raw: {
+            ...(event?.raw || {}),
+            eventCallType: callTypeByEventId.get(String(event?.eventId || "")) || String(event?.eventCallType || "").toLowerCase(),
+            eventType: eventTypeByEventId.get(String(event?.eventId || "")) || String(event?.raw?.eventType || event?.type || "").toLowerCase(),
+        },
+    }));
+
+    return {
+        bookedCalendarSlots,
+        availabilityCalendarSlots,
+    };
 }
 
 function getCalendarEventStyle(event, mode = "existing") {
@@ -655,34 +746,36 @@ function rebuildAvailabilityPreview() {
     const creatorEvents = Array.isArray(creatorEventsForCalendar.value)
         ? creatorEventsForCalendar.value
         : [];
+    const bookedSlotsRaw = Array.isArray(bookedSlotsRawForCalendar.value)
+        ? bookedSlotsRawForCalendar.value
+        : [];
     const bookedSlotsIndex = bookedSlotsIndexForCalendar.value || {};
 
     if (creatorEvents.length === 0) {
+        calendarBookedSlots.value = [];
         calendarAvailabilitySlots.value = [];
         return;
     }
 
-    calendarAvailabilitySlots.value = mapAvailabilityToCalendarEvents(creatorEvents, {
+    const { bookedCalendarSlots, availabilityCalendarSlots } = buildCalendarSlotsFromContext({
+        creatorEvents,
+        bookedSlotsRaw,
         bookedSlotsIndex,
         focusDate: state.focus,
-        rangeDaysBefore: 14,
-        rangeDaysAfter: 56,
-    }).map((event) => ({
-        ...event,
-        isExistingSchedule: true,
-        slot: "availability",
-        color: "#98A2B3",
-    }));
+    });
+
+    calendarBookedSlots.value = bookedCalendarSlots;
+    calendarAvailabilitySlots.value = availabilityCalendarSlots;
 }
 
 const onDebugSubmit = () => {
     console.log("Submit Clicked. Current State:", JSON.parse(JSON.stringify(bookingFlow.state)));
-    alert("Submitted! Check console for full state object.");
+    alert(t("booking_submitted_alert"));
 };
 
 // Helper for title
 const formTitle = computed(() => {
-    return currentType.value === 'group' ? 'Group Event Settings' : 'Private Booking Settings';
+    return currentType.value === 'group' ? t("booking_group_event_settings") : t("booking_private_booking_settings");
 });
 
 const handleCreateFlowCreated = async (payload) => {
@@ -721,8 +814,8 @@ useBodyOverflowHidden({ minWidth: 1010 });
                             hidden
                             v-if="embedded"
                             type="button"
-                            class="h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 transition hover:bg-slate-50"
-                            aria-label="Back to events"
+                            class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 transition hover:bg-slate-50"
+                            :aria-label="t('booking_back_to_events')"
                             @click="emit('back')"
                         >
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -778,8 +871,8 @@ useBodyOverflowHidden({ minWidth: 1010 });
                         ? 'w-full lg:overflow-y-auto lg:no-scrollbar lg:h-dvh lg:max-h-dvh lg:pb-4'
                         : 'w-full lg:overflow-y-auto lg:no-scrollbar lg:h-dvh lg:max-h-dvh lg:pb-4'
                 ]">
-                <NotificationCard variant="alert" :showIcon="false" title="Your are now viewing your booking setting in personal event calendar view."
-                    description="To preview how your booking schedule will look like on your profile, go to preview booking schedule."  />
+                <NotificationCard variant="alert" :showIcon="false" :title="t('booking_personal_calendar_notice')"
+                    :description="t('booking_calendar_notice_description')"  />
                 <div v-if="calendarError" class="mx-6 mt-3 px-3 py-2 rounded bg-red-50 text-red-700 text-xs font-medium">
                     {{ calendarError }}
                 </div>

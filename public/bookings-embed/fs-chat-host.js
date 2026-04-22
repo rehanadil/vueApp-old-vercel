@@ -22,7 +22,36 @@
     return pathname + (nextSearch ? "?" + nextSearch : "") + hash;
   }
 
-  function mountChatEmbed(target, options) {return;
+  function firstNonEmpty() {
+    for (var i = 0; i < arguments.length; i += 1) {
+      var value = arguments[i];
+      if (value !== null && value !== undefined && String(value).trim() !== "") {
+        return String(value);
+      }
+    }
+    return null;
+  }
+
+  function resolveFanUid(explicitValue) {
+    var userData = global.userData || {};
+    var currentUser = userData.user || {};
+    return firstNonEmpty(
+      explicitValue,
+      global.__fsChatFanUid,
+      userData.fanUid,
+      userData.fan_uid,
+      userData.encryptedUid,
+      userData.encrypted_uid,
+      userData.uid,
+      currentUser.fanUid,
+      currentUser.fan_uid,
+      currentUser.encryptedUid,
+      currentUser.encrypted_uid,
+      currentUser.uid
+    );
+  }
+
+  function mountChatEmbed(target, options) {
     var container = typeof target === "string"
       ? document.querySelector(target)
       : (target && target.nodeType === 1 ? target : null);
@@ -37,6 +66,7 @@
       userRole:      "fan",
       apiBaseUrl:    "https://fs-bookings-backend.onrender.com",
       openChatId:    null,
+      fanUid:        null,
       iframeTitle:   "Chat",
       width:         CHAT_EMBED_WIDTH,
       height:        CHAT_EMBED_HEIGHT,
@@ -46,6 +76,8 @@
       throw new Error("FSChatEmbed.mountChatEmbed requires a currentUserId.");
     }
 
+    settings.fanUid = resolveFanUid(settings.fanUid);
+
     var chatContainer = document.createElement("div");
     Object.assign(chatContainer.style, {
       position:      "fixed",
@@ -53,7 +85,7 @@
       right:         "0",
       width:         String(settings.width)  + "px",
       height:        String(settings.height) + "px",
-      zIndex:        "99999",
+      zIndex:        "9998",
       background:    "transparent",
       overflow:      "visible",
       pointerEvents: "none",
@@ -65,6 +97,7 @@
       userRole:      settings.userRole || "fan",
       apiBaseUrl:    settings.apiBaseUrl || null,
       openChatId:    settings.openChatId || null,
+      fanUid:        settings.fanUid || null,
     });
     iframe.title                = settings.iframeTitle;
     iframe.style.width          = "100%";
@@ -109,6 +142,14 @@
             },
           });
         }
+      } else if (data.type === "FS_CHAT_PRODUCT_SELECTED") {
+        var productPayload = data.payload || {};
+        if (typeof settings.onProductSelected === "function") {
+          settings.onProductSelected(productPayload);
+        }
+        window.dispatchEvent(new CustomEvent("FS_CHAT_PRODUCT_SELECTED", {
+          detail: productPayload,
+        }));
       }
     }
 
@@ -117,6 +158,12 @@
     return {
       iframe:    iframe,
       container: chatContainer,
+      refreshProductRecommendation: function (payload) {
+        iframe.contentWindow.postMessage({
+          type: "FS_CHAT_PRODUCT_REFRESH",
+          payload: Object.assign({ reason: "purchase_success" }, payload || {}),
+        }, "*");
+      },
       destroy: function () {
         window.removeEventListener("message", onMessage);
         if (chatContainer.parentNode) {
