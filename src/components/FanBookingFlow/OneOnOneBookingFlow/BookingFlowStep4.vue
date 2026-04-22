@@ -121,6 +121,11 @@ onMounted(() => {
                 <div class="flex flex-col justify-start items-center gap-2 w-full">
                   <div class="inline-flex justify-center items-center gap-2">
                     <img class="w-8 h-8" :src="creatorPresentation.avatar" alt="" />
+                    <div class="size-9 relative">
+                      <div data-svg-wrapper="" class="left-[0.24px] top-[2.18px] absolute overflow-hidden rounded-[40%_60%_55%_45%/55%_45%_60%_40%]">
+                        <img class="w-9 h-9 object-cover" :src="creatorPresentation.avatar" alt="" />
+                      </div>
+                    </div>
                     <div class="flex justify-start items-center gap-1">
                       <div class="justify-start text-white text-sm font-medium leading-5 line-clamp-1">{{ creatorLabel }}</div>
                       <div v-if="creatorPresentation.isVerified" data-size="sm" class="w-3 h-3 relative overflow-hidden">
