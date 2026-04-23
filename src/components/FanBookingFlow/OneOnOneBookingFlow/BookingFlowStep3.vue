@@ -101,6 +101,9 @@ const creatorPresentation = computed(() => resolveCreatorPresentation({
   selectedEvent: selectedEvent.value,
   bookingResult: props.engine.getState('fanBooking.booking.result'),
 }));
+const creatorPresentationLoading = computed(() => (
+  props.engine.getState('fanBooking.context.creatorPresentationLoading') === true
+));
 const { resolvedBackgroundImageUrl } = useEventBackgroundImage(selectedEvent, bookingFlowBackgroundImage);
 
 const topUpFormRef = ref(null);
@@ -1341,6 +1344,7 @@ onBeforeUnmount(() => {
               :creator-avatar="creatorPresentation.avatar"
               :creator-name="creatorPresentation.name"
               :creator-is-verified="creatorPresentation.isVerified"
+              :creator-loading="creatorPresentationLoading"
               :show-approval-needed="showApprovalNeeded"
             />
 
@@ -1563,7 +1567,7 @@ onBeforeUnmount(() => {
                   after:border-b-0"
                 :class="actionButtonClass">
               <p class="text-lg w-full leading-[28px] text-black text-center font-medium">{{ isSubmitting ? t('fan_booking_processing') : actionLabel }}</p>
-              <div v-if="isCheckingBalance" class="w-5 h-5 border-2 border-black/40 border-t-black rounded-full animate-spin"></div>
+              <div v-if="isCheckingBalance" class="w-5 h-5 border-2 border-black/40 border-t-black rounded-full animate-spin flex-none"></div>
               <div class="w-6 h-6 flex justify-center items-center">
                 <img :src="bookingFlowArrowRightIcon" alt="arrow-right-icon" />
               </div>
