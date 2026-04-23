@@ -255,7 +255,7 @@ import { hhmm } from '@/utils/calendarHelpers.js';
 import { getBookingJoinState } from '@/utils/bookingJoinUtils.js';
 import alarmIcon from '@/assets/images/icons/alarmIcon.png';
 import userIcon from '@/assets/images/icons/profile.webp';
-import dotPoints from '@/assets/images/icons/dotPoints.png';
+import dotPoints from '@/assets/images/icons/dotpoints.png';
 import dollarIcon from '@/assets/images/icons/dollar.png';
 import bellIcon from '@/assets/images/icons/bell-1.webp';
 import messageDots from '@/assets/images/icons/message-dots.png';
