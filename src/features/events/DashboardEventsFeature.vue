@@ -602,9 +602,11 @@ function rgba(hexColor, alpha = 1) {
 function getCalendarEventStyle(event) {
   if (event?.isAvailabilityBlock) {
     return {
-      backgroundColor: "rgba(152, 162, 179, 0.18)",
+      backgroundColor: "rgba(152, 162, 179, 0.1)",
       border: "1px solid rgba(152, 162, 179, 0.16)",
       color: "transparent",
+      borderRadius: "0px",
+      border: "none",
       zIndex: 1,
     };
   }
@@ -615,10 +617,10 @@ function getCalendarEventStyle(event) {
   );
 
   return {
-    backgroundColor: rgba(color, 0.22),
-    border: `1px solid ${rgba(color, 0.35)}`,
+    backgroundColor: color,
+    border: `1px solid ${color}`,
     borderBottom: `1px solid ${color}`,
-    color,
+    color: "#ffffff",
     zIndex: 2,
   };
 }

@@ -36,7 +36,7 @@
           <span class="flex flex-col gap-[0.25rem] h-auto flex-1 min-w-0"> 
             
             <h3
-              class="text-[0.875rem] font-semibold leading-[1.25rem] truncate pr-1"
+              class="text-[0.875rem] font-semibold leading-[1.25rem] max-w-[11.25rem] truncate pr-1"
               :class="event.titleColorClass"
               :style="section.title === 'PENDING EVENTS'
                 ? { color: '#101828' }
