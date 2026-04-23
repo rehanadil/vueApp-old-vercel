@@ -501,11 +501,21 @@ function buildCalendarSlotsFromContext({
 }
 
 function getCalendarEventStyle(event, mode = "existing") {
+    const color = normalizeHexColor(
+        event?.color || event?.eventColorSkin || event?.raw?.eventColorSkin || DEFAULT_EVENT_COLOR,
+        DEFAULT_EVENT_COLOR,
+    );
+
+    if (mode === "draft") {
+        return {
+            borderBottom: `1px solid ${color}`,
+            color,
+            background: `repeating-linear-gradient(-45deg, ${rgba(color, 0.24)}, ${rgba(color, 0.24)} 2px, ${rgba(color, 0.14)} 3px, ${rgba(color, 0.14)} 10px)`,
+            zIndex: 3,
+        };
+    }
+
     if (mode === "availability" || event?.isAvailabilityBlock) {
-        const color = normalizeHexColor(
-            event?.eventColorSkin || event?.color || event?.raw?.eventColorSkin || DEFAULT_EVENT_COLOR,
-            DEFAULT_EVENT_COLOR,
-        );
         return {
             backgroundColor: rgba(color, 0.08),
             backgroundImage: `repeating-linear-gradient(-45deg, ${rgba(color, 0.16)} 0px, ${rgba(color, 0.16)} 3px, transparent 3px, transparent 13px)`,
@@ -516,24 +526,16 @@ function getCalendarEventStyle(event, mode = "existing") {
         };
     }
 
-    const color = normalizeHexColor(
-        event?.color || event?.eventColorSkin || event?.raw?.eventColorSkin || DEFAULT_EVENT_COLOR,
-        DEFAULT_EVENT_COLOR,
-    );
-    if (mode === "draft") {
-        return {
-            borderBottom: `1px solid ${color}`,
-            color,
-            background: `repeating-linear-gradient(-45deg, ${rgba(color, 0.24)}, ${rgba(color, 0.24)} 2px, ${rgba(color, 0.14)} 3px, ${rgba(color, 0.14)} 10px)`,
-            zIndex: 3,
-        };
-    }
     return {
         borderBottom: `1px solid ${color}`,
         color,
         backgroundColor: rgba(color, 0.2),
         zIndex: 2,
     };
+}
+
+function shouldOpenCalendarEvent(event) {
+    return !event?.isAvailabilityBlock && !event?.isDraftPreview;
 }
 
 function createPreviewEvent({ dateIso, startTime, endTime, title, color, index }) {
@@ -560,6 +562,7 @@ function createPreviewEvent({ dateIso, startTime, endTime, title, color, index }
         color,
         isDraftPreview: true,
         isDraft: true,
+        isAvailabilityBlock: true,
     };
 }
 
@@ -943,7 +946,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
 
                     <template #event="{ event, style, onClick }">
                         <div class="absolute py-1 px-2 border-b text-xs shadow-sm overflow-hidden min-h-[2.375rem]"
-                            :style="[style, getCalendarEventStyle(event, 'existing')]" @click.stop="onClick(event)">
+                            :style="[style, getCalendarEventStyle(event, 'existing')]" @click.stop="shouldOpenCalendarEvent(event) && onClick(event)">
                             <div class="flex items-center gap-1 font-normal truncate">
                                 <svg width="11" height="12" viewBox="0 0 11 12" fill="none"
                                     xmlns="http://www.w3.org/2000/svg">
@@ -958,9 +961,13 @@ useBodyOverflowHidden({ minWidth: 1010 });
                     </template>
 
                     <template #event-custom="{ event, style, onClick }">
-                        <div class="absolute py-1 px-2 border-b text-xs shadow-sm overflow-hidden min-h-[2.375rem]"
+                        <div
+                            :class="[
+                                'absolute py-1 px-2 border-b text-xs shadow-sm overflow-hidden min-h-[2.375rem]',
+                                (event?.isAvailabilityBlock || event?.isDraftPreview) ? 'pointer-events-none' : ''
+                            ]"
                             :style="[style, getCalendarEventStyle(event, event?.isDraftPreview ? 'draft' : 'existing')]"
-                            @click.stop="onClick(event)">
+                            @click.stop="shouldOpenCalendarEvent(event) && onClick(event)">
                             <div class="flex items-center gap-1 font-normal leading-4 truncate">
                                 <svg width="11" height="12" viewBox="0 0 11 12" fill="none"
                                     xmlns="http://www.w3.org/2000/svg">
@@ -976,7 +983,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
 
                     <template #event-alt="{ event, style, onClick }">
                         <div class="absolute py-1 px-2 border-b text-xs shadow-sm"
-                            :style="[style, getCalendarEventStyle(event, 'existing')]" @click.stop="onClick(event)">
+                            :style="[style, getCalendarEventStyle(event, 'existing')]" @click.stop="shouldOpenCalendarEvent(event) && onClick(event)">
                             <div class="flex items-center gap-1 font-normal truncate">
                                 <svg class="w-3 h-3 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                     stroke-width="2">
@@ -992,7 +999,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
 
                     <template #event-custom2="{ event, style, onClick }">
                         <div class="absolute py-1 px-2 border-b text-xs shadow-sm"
-                            :style="[style, getCalendarEventStyle(event, 'existing')]" @click.stop="onClick(event)">
+                            :style="[style, getCalendarEventStyle(event, 'existing')]" @click.stop="shouldOpenCalendarEvent(event) && onClick(event)">
                             <div class="flex items-center gap-1 font-normal">
                                 <svg class="w-3 h-3 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                     stroke-width="2">
